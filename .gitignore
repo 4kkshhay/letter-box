@@ -1,0 +1,47 @@
+# Local planning notes — never commit
+/*_Brief.md
+/private/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime data (SQLite database, generated QR codes)
+/data/
+/output/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Logs
+*.log
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
