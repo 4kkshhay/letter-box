@@ -6,6 +6,7 @@
 .env
 .env.*
 !.env.example
+.release.env
 
 # Runtime data (SQLite database, generated QR codes)
 /data/

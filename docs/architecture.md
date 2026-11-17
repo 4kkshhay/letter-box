@@ -21,7 +21,7 @@
 | Admin UI | Server-rendered Jinja2 templates | No separate build |
 | QR codes | `segno` | Pure Python, PNG and SVG |
 | Runtime | One multi-stage Docker image, Docker Compose | Node only in the build stage; built for `linux/arm64` |
-| Public access | Cloudflare Tunnel (`cloudflared` container) | No host ports published on the server |
+| Public access | Cloudflare Tunnel (`cloudflared` container) | No host ports published on the server; image pinned by digest |
 | Tests | pytest; Vitest + Testing Library for shared client code | Not shipped in the image |
 
 Pin dependency versions (lockfiles) when code is added. Animation, 3D or
@@ -44,6 +44,10 @@ into that page.
   tunnel maps `letterbox.ink` and `admin.letterbox.ink` to them.
 - **Own tunnel.** The Compose project carries its own `cloudflared` container,
   so it shares nothing with other stacks on the server.
+- **Build once, deploy by digest.** GitHub Actions builds the arm64 image,
+  publishes it privately to GHCR. A separate manual action deploys that exact
+  digest over SSH.
+  The server receives only Compose/runtime files and never builds source.
 - **No ORM.** Two small tables do not justify SQLAlchemy and Alembic.
 - **Last write wins.** No revision counter; pages have a single visitor.
 - **No PostgreSQL, Redis, queues, object storage or background jobs.**
@@ -92,6 +96,7 @@ frontend/
   pages/_template/    # scaffold copied by new-page; not built
   shared/             # API client, PageRoot, base styles, tests
 scripts/              # run, restart, test, new-page, export-db
+.github/workflows/    # pull-request tests; image release and SSH deployment
 docs/
 data/                 # SQLite file (gitignored)
 ```
@@ -136,6 +141,8 @@ data/                 # SQLite file (gitignored)
   (`HttpOnly`, `Secure` in production, `SameSite=Strict`), globally throttled
   login attempts and same-origin form mutations.
 - Logs must not contain slug-bearing paths or response bodies.
+- Forwarded headers are not trusted or needed: production-only behaviour comes
+  from `APP_ENV`, origin checks compare hosts, and login throttling is global.
 - API docs (`/docs`, `/openapi.json`) are disabled on both apps.
 - `.env`, the database and generated QR codes are never committed. Tests and
   demo pages use synthetic content only.

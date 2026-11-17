@@ -6,7 +6,7 @@ code and assets, and may save and restore deliberately submitted input. A
 password-protected admin dashboard lists pages, shows responses and visits,
 and generates QR codes.
 
-**Status:** Phase 4 (admin) complete. See the
+**Status:** Phase 5 (deployment and regression) in progress. See the
 [roadmap](docs/roadmap.md) and [progress log](docs/progress.md).
 
 ## Stack
@@ -34,6 +34,7 @@ data/             SQLite file for local runs (gitignored)
 - [Specification](docs/specification.md) — page config, data model, routes
 - [Deployment](docs/deployment.md) — Docker, tunnel, admin, data export
 - [Development](docs/development.md) — local setup, commands, dependencies
+- [Adding a page](docs/adding-a-page.md) — scaffold, build, verify and release a page
 - [Roadmap](docs/roadmap.md) — phases, acceptance tests, out-of-scope items
 - [Progress](docs/progress.md) — what was built and verified per phase
 - [Decisions](docs/decisions.md) — decision log

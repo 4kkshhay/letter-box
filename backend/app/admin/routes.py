@@ -61,9 +61,13 @@ async def login(request: Request) -> Response:
             headers=NO_STORE,
         )
     content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
-    body = await request.body()
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > 4096:
+            raise HTTPException(status_code=413, detail="Request body too large")
     password = ""
-    if content_type == "application/x-www-form-urlencoded" and len(body) <= 4096:
+    if content_type == "application/x-www-form-urlencoded":
         password = parse_qs(body.decode("utf-8", errors="replace")).get("password", [""])[0]
     settings = request.app.state.settings
     if not settings.admin_password_hash or not verify_password(password, settings.admin_password_hash):

@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# One-time production host bootstrap for Letterbox.
+set -euo pipefail
+
+deploy_user="letterbox"
+project_dir="/srv/letter-box"
+
+fail() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+if [ "$(id -u)" -ne 0 ]; then
+  fail "run this script as root (for example: sudo bash $0)"
+fi
+
+command -v docker >/dev/null 2>&1 || fail "Docker is not installed"
+docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is not installed"
+getent group docker >/dev/null 2>&1 || fail "the docker group does not exist"
+
+read -r -p "Paste the letterbox_deploy.pub line: " public_key
+case "$public_key" in
+  ssh-ed25519\ * ) ;;
+  * ) fail "the deployment key must be a single ssh-ed25519 public-key line" ;;
+esac
+
+if ! id "$deploy_user" >/dev/null 2>&1; then
+  if command -v adduser >/dev/null 2>&1; then
+    adduser --disabled-password --gecos "" "$deploy_user"
+  else
+    useradd --create-home --shell /bin/bash --user-group "$deploy_user"
+    passwd --lock "$deploy_user"
+  fi
+fi
+
+usermod -aG docker "$deploy_user"
+deploy_group=$(id -gn "$deploy_user")
+deploy_home=$(getent passwd "$deploy_user" | cut -d: -f6)
+[ -n "$deploy_home" ] || fail "could not determine the deployment user's home"
+
+install -d -o "$deploy_user" -g "$deploy_group" -m 0700 "$deploy_home/.ssh"
+touch "$deploy_home/.ssh/authorized_keys"
+chown "$deploy_user:$deploy_group" "$deploy_home/.ssh/authorized_keys"
+chmod 0600 "$deploy_home/.ssh/authorized_keys"
+if ! grep -Fqx -- "$public_key" "$deploy_home/.ssh/authorized_keys"; then
+  printf '%s\n' "$public_key" >> "$deploy_home/.ssh/authorized_keys"
+fi
+
+install -d -o "$deploy_user" -g "$deploy_group" -m 0750 "$project_dir"
+install -d -o "$deploy_user" -g "$deploy_group" -m 0750 "$project_dir/data"
+
+env_file="$project_dir/.env"
+if [ -s "$env_file" ]; then
+  echo "$env_file already contains data; preserving it."
+else
+  read -r -s -p "Cloudflare tunnel token: " tunnel_token
+  echo
+  [ -n "$tunnel_token" ] || fail "the Cloudflare tunnel token cannot be empty"
+  case "$tunnel_token" in
+    *"'"* ) fail "the Cloudflare tunnel token cannot contain a single quote" ;;
+  esac
+
+  read -r -s -p "Paste the output from scripts/hash-admin-password.sh: " admin_hash
+  echo
+  hash_assignment_prefix="ADMIN_PASSWORD_HASH='"
+  if [[ "$admin_hash" == "$hash_assignment_prefix"* && "$admin_hash" == *"'" ]]; then
+    admin_hash=${admin_hash#"$hash_assignment_prefix"}
+    admin_hash=${admin_hash%\'}
+  fi
+  case "$admin_hash" in
+    scrypt\$* ) ;;
+    * ) fail "the admin password hash must start with scrypt$" ;;
+  esac
+  case "$admin_hash" in
+    *"'"* ) fail "the admin password hash cannot contain a single quote" ;;
+  esac
+
+  if command -v openssl >/dev/null 2>&1; then
+    session_secret=$(openssl rand -hex 32)
+  else
+    session_secret=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+  fi
+
+  app_uid=$(id -u "$deploy_user")
+  app_gid=$(id -g "$deploy_user")
+  temporary_env=$(mktemp "$project_dir/.env.tmp.XXXXXX")
+  trap 'rm -f "${temporary_env:-}"' EXIT
+  {
+    printf '%s\n' 'COMPOSE_FILE=docker-compose.yml:docker-compose.production.yml'
+    printf '%s\n' 'APP_ENV=production'
+    printf '%s\n' 'PUBLIC_BASE_URL=https://letterbox.ink'
+    printf '%s\n' 'DATA_DIR=./data'
+    printf 'APP_UID=%s\n' "$app_uid"
+    printf 'APP_GID=%s\n' "$app_gid"
+    printf "ADMIN_PASSWORD_HASH='%s'\n" "$admin_hash"
+    printf "SESSION_SECRET='%s'\n" "$session_secret"
+    printf "TUNNEL_TOKEN='%s'\n" "$tunnel_token"
+  } > "$temporary_env"
+  chown "$deploy_user:$deploy_group" "$temporary_env"
+  chmod 0600 "$temporary_env"
+  mv "$temporary_env" "$env_file"
+  trap - EXIT
+fi
+
+chown "$deploy_user:$deploy_group" "$env_file"
+chmod 0600 "$env_file"
+
+echo
+echo "Letterbox server bootstrap complete."
+echo "User: $deploy_user"
+echo "Project: $project_dir"
+echo "The .env values were not printed."
+echo "Test SSH from your local machine before running the deployment."

@@ -57,11 +57,11 @@ admin views change nothing; admin routes absent from the public port.
 
 - [ ] `cloudflared` service and tunnel for both hostnames
 - [ ] Deploy to the server in its own directory and Compose project
-- [ ] `scripts/export-db`
-- [ ] Security headers, safe logging, cache controls, body limits
+- [x] `scripts/export-db`
+- [x] Security headers, safe logging, cache controls, body limits
 - [ ] Real phone test over HTTPS
-- [ ] Add another demo page; verify earlier links and data are intact
-- [ ] `docs/adding-a-page.md`
+- [x] Add another demo page; verify earlier links and data are intact
+- [x] `docs/adding-a-page.md`
 
 **Exit:** end-to-end over HTTPS; data survives redeploy; old links work.
 
