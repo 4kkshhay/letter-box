@@ -55,6 +55,7 @@ function applyUpdate(values: Record<string, FieldValue>, fields: FieldUpdate) {
  * when the server rejected it as invalid.
  */
 export function usePageState(page: PageData) {
+  const readOnly = page.admin === true;
   const [values, setValues] = useState<Record<string, FieldValue>>(page.state);
   const [status, setStatus] = useState<ActionStatus>({ kind: "idle" });
   const unsaved = useRef<FieldUpdate>({});
@@ -63,7 +64,7 @@ export function usePageState(page: PageData) {
 
   const flush = useCallback(async (): Promise<void> => {
     clearTimeout(timer.current);
-    if (saving.current || isEmpty(unsaved.current)) {
+    if (readOnly || saving.current || isEmpty(unsaved.current)) {
       return;
     }
     const fields = unsaved.current;
@@ -91,10 +92,13 @@ export function usePageState(page: PageData) {
         await flush();
       }
     }
-  }, []);
+  }, [readOnly]);
 
   const update = useCallback(
     (fields: FieldUpdate, options: { immediate?: boolean } = {}) => {
+      if (readOnly) {
+        return;
+      }
       setValues((current) => applyUpdate(current, fields));
       unsaved.current = { ...unsaved.current, ...fields };
       setStatus({ kind: "pending" });
@@ -105,7 +109,7 @@ export function usePageState(page: PageData) {
         timer.current = setTimeout(() => void flush(), AUTOSAVE_DELAY_MS);
       }
     },
-    [flush],
+    [flush, readOnly],
   );
 
   useEffect(() => {

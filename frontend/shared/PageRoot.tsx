@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { fetchPage, PageUnavailableError, recordOpen, type PageData } from "./api";
 import { goToRoot } from "./navigate";
 import styles from "./PageRoot.module.css";
@@ -39,7 +39,9 @@ export function PageRoot({ children, loading, error }: PageRootProps) {
     fetchPage(controller.signal).then(
       (page) => {
         setStatus({ kind: "ready", page });
-        recordOpenOnce();
+        if (!page.admin) {
+          recordOpenOnce();
+        }
       },
       (reason: unknown) => {
         if (controller.signal.aborted) {
@@ -62,7 +64,8 @@ export function PageRoot({ children, loading, error }: PageRootProps) {
   };
 
   if (status.kind === "ready") {
-    return children(status.page);
+    const content = children(status.page);
+    return status.page.admin ? <AdminPreview>{content}</AdminPreview> : content;
   }
   if (status.kind === "error") {
     return (
@@ -82,5 +85,27 @@ export function PageRoot({ children, loading, error }: PageRootProps) {
         <span className={styles.dot} />
       </div>
     )
+  );
+}
+
+function AdminPreview({ children }: { children: ReactNode }) {
+  const page = window.location.pathname.split("/").filter(Boolean).at(-1) ?? "";
+  const confirmReset = (event: FormEvent<HTMLFormElement>) => {
+    if (!window.confirm("Reset all saved responses and opens for this page?")) {
+      event.preventDefault();
+    }
+  };
+
+  return (
+    <>
+      <nav className={styles.admin} aria-label="Admin preview controls">
+        <a href="/">Dashboard</a>
+        <span>Read-only preview</span>
+        <form method="post" action={`/pages/${encodeURIComponent(page)}/reset`} onSubmit={confirmReset}>
+          <button type="submit">Reset page data</button>
+        </form>
+      </nav>
+      {children}
+    </>
   );
 }

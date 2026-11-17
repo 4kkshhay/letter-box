@@ -14,6 +14,8 @@ export interface PageData {
   title: string;
   fields: Record<string, FieldDef>;
   state: Record<string, FieldValue>;
+  /** Present only on the authenticated, read-only admin preview. */
+  admin?: true;
 }
 
 /** The link no longer leads to a page. */

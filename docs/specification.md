@@ -194,7 +194,11 @@ presentation. It returns `{ values, status, update, saveNow }`:
 ## Admin app
 
 Separate port, served at `admin.letterbox.ink`. Everything except `/login`
-requires a session.
+requires a session (health checks remain available to the container runtime).
+The password is stored only as a scrypt hash in `ADMIN_PASSWORD_HASH`, generated
+by `scripts/hash-admin-password.sh`. A successful login sets a signed 12-hour
+`HttpOnly`, `SameSite=Strict` cookie; it is also `Secure` in production. Five
+failed attempts within five minutes temporarily throttle all logins.
 
 | Method | Route | Behaviour |
 | --- | --- | --- |
@@ -217,6 +221,10 @@ Admin mode, handled by the shared client code when the payload has
 The dashboard distinguishes "no response" from "empty answer". QR generation
 uses `PUBLIC_BASE_URL` and refuses non-HTTPS or local origins when
 `APP_ENV=production`.
+
+Reset and logout form submissions require a same-origin `Origin` header. Reset
+deletes both the page state row and all its opens in one transaction, without
+changing the page config or link.
 
 Intended pre-send workflow: open the real link as a visitor, check the result
 in the dashboard, reset the page, then hand out the QR code.

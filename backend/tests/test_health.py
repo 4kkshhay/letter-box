@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_admin_app, create_public_app
 from app.services.pages import PageRegistry
+from tests.conftest import ADMIN_PASSWORD
 
 
 @pytest.mark.parametrize("client_name", ["public_client", "admin_client"])
@@ -35,8 +36,9 @@ def test_ready_fails_when_schema_is_behind(migrated: Settings) -> None:
 
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
 def test_api_docs_disabled(path: str, public_client: TestClient, admin_client: TestClient) -> None:
-    # The public app redirects unknown paths; the admin app answers 404.
+    # The public app redirects unknown paths; the authenticated admin app answers 404.
     assert public_client.get(path).status_code == 302
+    assert admin_client.post("/login", data={"password": ADMIN_PASSWORD}).status_code == 303
     assert admin_client.get(path).status_code == 404
 
 
@@ -48,5 +50,5 @@ def test_public_root_serves_built_page_uncached(public_client: TestClient) -> No
 
 
 def test_admin_app_does_not_serve_public_routes(admin_client: TestClient) -> None:
-    assert admin_client.get("/").status_code == 404
-    assert admin_client.get("/l/" + "a" * 32).status_code == 404
+    assert admin_client.get("/").headers["location"] == "/login"
+    assert admin_client.get("/l/" + "a" * 32).headers["location"] == "/login"

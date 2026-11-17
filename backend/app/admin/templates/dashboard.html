@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>LetterBox dashboard</title>
+    <style>
+      :root { color-scheme: light; font: 15px/1.5 system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f4f1ea; color: #25231f; }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem max(1rem, calc((100% - 72rem) / 2)); background: #25231f; color: white; }
+      h1 { margin: 0; font-size: 1.35rem; }
+      header button { border: 1px solid #ffffff66; border-radius: .35rem; padding: .45rem .8rem; background: transparent; color: white; cursor: pointer; }
+      main { width: min(72rem, calc(100% - 2rem)); margin: 2rem auto; }
+      .page { margin-bottom: 1.25rem; padding: 1.25rem; border: 1px solid #d8d1c4; border-radius: .65rem; background: white; }
+      .title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .75rem; }
+      h2 { margin: 0; font-size: 1.2rem; }
+      .disabled, .empty { color: #716b61; }
+      .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: .75rem 0; }
+      a { color: #315c79; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; margin: 1rem 0 0; }
+      dt { font-weight: 700; }
+      dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+      ul { margin: .35rem 0 0; padding-left: 1.25rem; }
+      code { white-space: pre-wrap; overflow-wrap: anywhere; }
+      @media (max-width: 35rem) { dl { grid-template-columns: 1fr; } dd { margin-bottom: .5rem; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>LetterBox dashboard</h1>
+      <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+    </header>
+    <main>
+      {% if not pages %}<p>No pages are configured.</p>{% endif %}
+      {% for item in pages %}
+        <article class="page">
+          <div class="title">
+            <h2><a href="/view/{{ item.page.name }}">{{ item.page.config.title }}</a></h2>
+            {% if not item.page.config.enabled %}<span class="disabled">Disabled</span>{% endif %}
+          </div>
+          <div class="actions">
+            <a href="{{ item.public_url }}">Public link</a>
+            <a href="/pages/{{ item.page.name }}/qr.png">QR PNG</a>
+            <a href="/pages/{{ item.page.name }}/qr.svg">QR SVG</a>
+          </div>
+          <dl>
+            <dt>Received</dt><dd>{{ item.received_at or "Not received" }}</dd>
+            <dt>Visits</dt><dd>{{ item.visits }}</dd>
+            <dt>Open times</dt>
+            <dd>
+              {% if item.opens %}<ul>{% for opened in item.opens %}<li>{{ opened }}</li>{% endfor %}</ul>
+              {% else %}<span class="empty">No opens</span>{% endif %}
+            </dd>
+            <dt>Response</dt>
+            <dd>
+              {% if not item.has_response %}<span class="empty">No response</span>
+              {% elif not item.response %}<span class="empty">Empty response</span>
+              {% else %}<ul>{% for name, value in item.response.items() %}<li><strong>{{ name }}</strong>: <code>{{ value|tojson }}</code></li>{% endfor %}</ul>{% endif %}
+            </dd>
+            <dt>Last update</dt><dd>{{ item.responded_at or "—" }}</dd>
+          </dl>
+        </article>
+      {% endfor %}
+    </main>
+    <script>
+      for (const form of document.querySelectorAll('form[method="post"]')) {
+        form.addEventListener('submit', () => form.setAttribute('aria-busy', 'true'));
+      }
+    </script>
+  </body>
+</html>

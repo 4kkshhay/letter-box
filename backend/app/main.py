@@ -10,6 +10,8 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.admin import routes as admin
+from app.admin.auth import SESSION_COOKIE, password_hash_configured, valid_session
 from app.api import health, public
 from app.api.public import NO_STORE, redirect_to_root
 from app.config import Settings
@@ -52,4 +54,38 @@ def create_public_app(settings: Settings, pages: PageRegistry) -> FastAPI:
 
 
 def create_admin_app(settings: Settings, pages: PageRegistry) -> FastAPI:
-    return _base_app(settings, pages)
+    if not password_hash_configured(settings.admin_password_hash):
+        raise RuntimeError("ADMIN_PASSWORD_HASH is missing or invalid")
+    if not settings.session_secret:
+        raise RuntimeError("SESSION_SECRET is missing")
+    if settings.is_production and len(settings.session_secret) < 32:
+        raise RuntimeError("SESSION_SECRET must be at least 32 characters in production")
+    app = _base_app(settings, pages)
+    assets_dir = settings.static_dir / "assets"
+
+    @app.middleware("http")
+    async def require_admin_session(request: Request, call_next):
+        public_paths = {"/login", "/health", "/health/ready"}
+        if request.url.path not in public_paths and not valid_session(
+            request.cookies.get(SESSION_COOKIE), settings.session_secret
+        ):
+            if request.url.path.startswith("/api/"):
+                return Response(
+                    '{"detail":"Unauthorized"}',
+                    status_code=401,
+                    media_type="application/json",
+                    headers=NO_STORE,
+                )
+            return redirect_to_login()
+        return await call_next(request)
+
+    app.include_router(admin.router)
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="admin-assets")
+    return app
+
+
+def redirect_to_login() -> Response:
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse("/login", status_code=303, headers=NO_STORE)

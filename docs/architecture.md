@@ -132,8 +132,9 @@ data/                 # SQLite file (gitignored)
   `Referrer-Policy: no-referrer`, `Cache-Control: no-store` on HTML and API,
   a restrictive CSP and `frame-ancestors 'none'`. Hashed assets may be cached.
 - No third-party scripts, fonts or trackers.
-- Admin: single password, signed session cookie (`HttpOnly`, `Secure`,
-  `SameSite=Strict`), throttled login attempts.
+- Admin: single scrypt-hashed password, signed 12-hour session cookie
+  (`HttpOnly`, `Secure` in production, `SameSite=Strict`), globally throttled
+  login attempts and same-origin form mutations.
 - Logs must not contain slug-bearing paths or response bodies.
 - API docs (`/docs`, `/openapi.json`) are disabled on both apps.
 - `.env`, the database and generated QR codes are never committed. Tests and

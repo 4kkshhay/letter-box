@@ -7,6 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
+from app.admin.auth import hash_password
+from app.admin.routes import throttle
 from app.db.migrate import run_migrations
 from app.main import create_admin_app, create_public_app
 from app.services.pages import load_pages
@@ -14,6 +16,8 @@ from app.services.pages import load_pages
 SLUG_A = "a" * 32
 SLUG_B = "b" * 32
 SLUG_DISABLED = "d" * 32
+ADMIN_PASSWORD = "correct horse battery staple"
+ADMIN_PASSWORD_HASH = hash_password(ADMIN_PASSWORD, salt=b"0123456789abcdef")
 
 
 def write_page(static_dir: Path, name: str, config: Any, *, html: bool = True) -> Path:
@@ -38,6 +42,8 @@ def settings(tmp_path: Path) -> Settings:
         get_settings(),
         database_path=tmp_path / "data" / "test.db",
         static_dir=static_dir,
+        admin_password_hash=ADMIN_PASSWORD_HASH,
+        session_secret="test-session-secret",
     )
 
 
@@ -79,5 +85,6 @@ def public_client(with_pages: Settings) -> TestClient:
 
 @pytest.fixture
 def admin_client(with_pages: Settings) -> TestClient:
+    throttle.reset()
     app = create_admin_app(with_pages, load_pages(with_pages.static_dir))
     return TestClient(app, follow_redirects=False)

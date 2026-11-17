@@ -125,3 +125,38 @@ server deploy (deferred item F-006).
 | `scripts/test.sh` in Docker | Passes |
 | Running container over HTTP | Save, partial update, `null` removal, `422` on bad option, `403` without `Origin`, open recorded; bootstrap restores saved values; acknowledge endpoint returns `404` |
 | Inputs demo in a browser and on a phone | Confirmed working by the owner, including auto-save |
+
+## Phase 4 — Admin
+
+**Status:** done (2026-11-17). Forwarded-header behaviour is checked against
+the real tunnel during Phase 5 (F-004).
+
+### Built
+
+- Admin authentication: scrypt password hashes, generator script, signed
+  12-hour session cookie, login throttling, logout and route protection.
+- Dashboard: every page, public link, first open as received, derived visit
+  count, raw open times, saved responses and last update.
+- Read-only page preview: saved values through an admin-only bootstrap API,
+  shared preview controls, no saves and no recorded opens.
+- Transactional page reset and deterministic in-memory QR downloads in PNG
+  and SVG formats.
+- Jinja dashboard/login templates and pinned Jinja2/Segno dependencies.
+
+### Verified
+
+| Check | Result |
+| --- | --- |
+| Frontend tests | 32 passed (admin chrome, no admin open, read-only state added) |
+| Backend tests | 146 passed (auth, sessions, throttle, dashboard, visits, preview, reset, QR and isolation added) |
+| `scripts/test.sh` in Docker | Passes |
+| Disposable runtime container | Visitor save/open appeared in dashboard and preview; reset cleared both; PNG downloaded; admin open route returned `404` |
+| Running local container | Login, dashboard, saved-value preview, SVG download and public-port isolation pass on ports 8611/8610 |
+| Public/admin isolation | Protected admin routes require a session; admin routes remain absent from the public app; admin has no save/open endpoints |
+
+### Notes
+
+- The roadmap's acknowledgement wording is retained unchanged; the dashboard
+  implements the superseding definition from D-043: received is the first open.
+- Playwright remains unnecessary at this size; F-008 is resolved by the
+  existing pytest/Vitest coverage plus the runtime smoke test (D-050).
