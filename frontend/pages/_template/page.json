@@ -1,6 +1,5 @@
 {
   "slug": "__SLUG__",
   "title": "__NAME__",
-  "enabled": true,
-  "acknowledgement": false
+  "enabled": true
 }

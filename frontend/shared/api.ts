@@ -7,16 +7,29 @@ export type FieldDef =
 
 export type FieldValue = string | string[];
 
+/** A partial update; `null` removes a saved value. */
+export type FieldUpdate = Record<string, FieldValue | null>;
+
 export interface PageData {
   title: string;
-  acknowledgement: boolean;
   fields: Record<string, FieldDef>;
   state: Record<string, FieldValue>;
-  acknowledged: boolean;
 }
 
 /** The link no longer leads to a page. */
 export class PageUnavailableError extends Error {}
+
+/**
+ * Why an action did not succeed: the server rejected the input, the page is
+ * gone, or the request failed or never arrived.
+ */
+export type FailureKind = "invalid" | "unavailable" | "failed";
+
+export class ActionError extends Error {
+  constructor(readonly kind: FailureKind) {
+    super(`Action failed: ${kind}`);
+  }
+}
 
 /** `/l/<slug>` → `/api/v1/pages/<slug>` */
 export function pageApiUrl(pathname: string = window.location.pathname): string {
@@ -37,4 +50,58 @@ export async function fetchPage(signal?: AbortSignal): Promise<PageData> {
     throw new Error(`Unexpected response: ${response.status}`);
   }
   return (await response.json()) as PageData;
+}
+
+async function send(path: string, init: RequestInit): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(`${pageApiUrl()}${path}`, {
+      cache: "no-store",
+      ...init,
+      headers: { Accept: "application/json", ...init.headers },
+    });
+  } catch {
+    throw new ActionError("failed");
+  }
+  if (response.status === 404) {
+    throw new ActionError("unavailable");
+  }
+  if (response.status === 422) {
+    throw new ActionError("invalid");
+  }
+  if (!response.ok) {
+    throw new ActionError("failed");
+  }
+  return response;
+}
+
+/**
+ * Saves the given fields and returns all saved values afterwards.
+ * `keepalive` lets a save started as the page closes still complete.
+ */
+export async function saveFields(fields: FieldUpdate): Promise<Record<string, FieldValue>> {
+  const response = await send("/state", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fields }),
+    keepalive: true,
+  });
+  let body: { state?: Record<string, FieldValue>; saved?: boolean };
+  try {
+    body = (await response.json()) as typeof body;
+  } catch {
+    throw new ActionError("failed");
+  }
+  if (body.saved !== true || !body.state) {
+    throw new ActionError("failed");
+  }
+  return body.state;
+}
+
+/**
+ * Reports one open of this page; the first one is shown to the admin as
+ * "received". `keepalive` lets it finish if the page is closed.
+ */
+export async function recordOpen(): Promise<void> {
+  await send("/open", { method: "POST", keepalive: true });
 }

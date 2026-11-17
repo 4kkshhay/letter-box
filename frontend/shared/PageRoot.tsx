@@ -1,9 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { fetchPage, PageUnavailableError, type PageData } from "./api";
+import { fetchPage, PageUnavailableError, recordOpen, type PageData } from "./api";
 import { goToRoot } from "./navigate";
 import styles from "./PageRoot.module.css";
 
 type Status = { kind: "loading" } | { kind: "ready"; page: PageData } | { kind: "error" };
+
+// One open per page load, even if the component mounts twice or a retry succeeds.
+let openRecorded = false;
+
+function recordOpenOnce(): void {
+  if (openRecorded) {
+    return;
+  }
+  openRecorded = true;
+  // Losing an open is harmless; never disturb the page over it.
+  recordOpen().catch(() => undefined);
+}
 
 interface PageRootProps {
   /** Renders the page once its data has loaded. */
@@ -25,7 +37,10 @@ export function PageRoot({ children, loading, error }: PageRootProps) {
   useEffect(() => {
     const controller = new AbortController();
     fetchPage(controller.signal).then(
-      (page) => setStatus({ kind: "ready", page }),
+      (page) => {
+        setStatus({ kind: "ready", page });
+        recordOpenOnce();
+      },
       (reason: unknown) => {
         if (controller.signal.aborted) {
           return;

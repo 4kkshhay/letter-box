@@ -17,7 +17,6 @@ def test_loads_pages_with_defaults(tmp_path: Path) -> None:
     page = registry.by_slug(SLUG_A)
     assert page is not None and page is registry.by_name("alpha")
     assert page.config.enabled is True
-    assert page.config.acknowledgement is False
     assert page.config.fields == {}
     assert page.html_path == tmp_path / "pages" / "alpha" / "index.html"
 

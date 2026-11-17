@@ -1,0 +1,175 @@
+.page {
+  --accent: #b5523b;
+  min-height: 100%;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1rem max(2rem, env(safe-area-inset-bottom));
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: #2b2620;
+  background: #f6f1e7;
+}
+
+.header,
+.card {
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.header h1 {
+  margin: 0 0 0.25rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: normal;
+  font-size: clamp(1.75rem, 7vw, 2.25rem);
+  color: var(--accent);
+}
+
+.header p {
+  margin: 0 0 1.25rem;
+  color: #6b6155;
+}
+
+.card {
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  background: #fffdf8;
+  box-shadow: 0 1px 3px rgb(43 38 32 / 12%);
+}
+
+.card h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.card p {
+  margin: 0 0 0.75rem;
+}
+
+.group {
+  display: block;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border: 0;
+}
+
+.group legend,
+.legend {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.option {
+  position: relative;
+}
+
+/* Visually hidden but still focusable and announced. */
+.option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.option span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid #d8cfbf;
+  border-radius: 999px;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    color 150ms;
+}
+
+.option input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.option input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.note {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d8cfbf;
+  border-radius: 0.5rem;
+  background: #fff;
+  resize: vertical;
+}
+
+.note:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #8a7f71;
+  text-align: right;
+}
+
+.secondary {
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.secondary:focus-visible {
+  outline: 2px solid #2b2620;
+  outline-offset: 2px;
+}
+
+.status,
+.error {
+  min-height: 1.5em;
+  margin: 0.75rem 0 0;
+}
+
+.status {
+  color: #6b6155;
+}
+
+.error {
+  color: #a3261b;
+}
+
+.link {
+  min-height: 44px;
+  padding: 0 0.25rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (min-width: 48rem) {
+  .page {
+    padding-top: 3rem;
+  }
+
+  .card {
+    padding: 1.75rem;
+  }
+}

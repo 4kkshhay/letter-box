@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchPage, pageApiUrl, PageUnavailableError } from "./api";
+import {
+  ActionError,
+  fetchPage,
+  pageApiUrl,
+  PageUnavailableError,
+  recordOpen,
+  saveFields,
+} from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -21,7 +28,7 @@ describe("fetchPage", () => {
   };
 
   it("requests the page uncached and returns its data", async () => {
-    const data = { title: "T", acknowledgement: false, fields: {}, state: {}, acknowledged: false };
+    const data = { title: "T", fields: {}, state: {} };
     const fetchMock = stubFetch({ ok: true, status: 200, json: () => Promise.resolve(data) });
     window.history.replaceState(null, "", "/l/some-slug");
 
@@ -42,5 +49,68 @@ describe("fetchPage", () => {
     const failure = await fetchPage().catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(Error);
     expect(failure).not.toBeInstanceOf(PageUnavailableError);
+  });
+});
+
+describe("actions", () => {
+  const ok = (body?: unknown): Partial<Response> => ({
+    ok: true,
+    status: body === undefined ? 204 : 200,
+    json: () => Promise.resolve(body),
+  });
+
+  const failureKind = (promise: Promise<unknown>) =>
+    promise.then(
+      () => "resolved",
+      (error: unknown) => (error instanceof ActionError ? error.kind : "other"),
+    );
+
+  it("saveFields sends a JSON PATCH and returns the saved state", async () => {
+    window.history.replaceState(null, "", "/l/some-slug");
+    const fetchMock = vi.fn().mockResolvedValue(ok({ state: { choice: "b" }, saved: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(saveFields({ choice: "b", note: null })).resolves.toEqual({ choice: "b" });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/pages/some-slug/state");
+    expect(init.method).toBe("PATCH");
+    expect(init.headers).toMatchObject({ "Content-Type": "application/json" });
+    expect(JSON.parse(init.body as string)).toEqual({ fields: { choice: "b", note: null } });
+  });
+
+  it("recordOpen POSTs to its endpoint with keepalive", async () => {
+    window.history.replaceState(null, "", "/l/some-slug");
+    const fetchMock = vi.fn().mockResolvedValue(ok());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await recordOpen();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/pages/some-slug/open");
+    expect(init).toMatchObject({ method: "POST", keepalive: true });
+  });
+
+  it.each([
+    [422, "invalid"],
+    [404, "unavailable"],
+    [500, "failed"],
+    [403, "failed"],
+  ])("maps HTTP %i to %s", async (status, kind) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
+    expect(await failureKind(saveFields({ choice: "a" }))).toBe(kind);
+  });
+
+  it("reports a network failure as failed", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    expect(await failureKind(recordOpen())).toBe("failed");
+  });
+
+  it("never reports success unless the server confirms the save", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok({ state: {}, saved: false })));
+    expect(await failureKind(saveFields({ choice: "a" }))).toBe("failed");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.reject(new Error()) }),
+    );
+    expect(await failureKind(saveFields({ choice: "a" }))).toBe("failed");
   });
 });

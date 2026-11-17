@@ -1,14 +1,24 @@
-"""Public routes: page HTML by secret link, and the page bootstrap API."""
+"""Public routes: page HTML by link, and the page API."""
 
+import json
 from typing import Any
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from starlette.concurrency import run_in_threadpool
 
 from app.services.pages import Page
-from app.services.state import read_state
+from app.services.state import (
+    InvalidFields,
+    read_state,
+    record_open,
+    save_fields,
+    validate_fields,
+)
 
 NO_STORE = {"Cache-Control": "no-store"}
+MAX_BODY_BYTES = 64 * 1024
 
 router = APIRouter()
 
@@ -21,6 +31,40 @@ def _page_for(request: Request, slug: str) -> Page | None:
     return request.app.state.pages.by_slug(slug)
 
 
+def _require_page(request: Request, slug: str) -> Page:
+    page = _page_for(request, slug)
+    if page is None:
+        # Same body as an unmatched route, so nothing distinguishes the two.
+        raise HTTPException(status_code=404, detail="Not Found")
+    return page
+
+
+def require_same_origin(request: Request) -> None:
+    """Mutations must come from a page served by this site.
+
+    Browsers always send Origin on these requests and scripts cannot forge it.
+    """
+    origin = request.headers.get("origin")
+    host = request.headers.get("host")
+    if not origin or not host or urlsplit(origin).netloc != host:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
+async def _read_json_body(request: Request) -> Any:
+    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if content_type != "application/json":
+        raise HTTPException(status_code=415, detail="Expected application/json")
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > MAX_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="Request body too large")
+    try:
+        return json.loads(body)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid input") from None
+
+
 @router.api_route("/l/{slug}", methods=["GET", "HEAD"])
 def page_html(slug: str, request: Request) -> Response:
     page = _page_for(request, slug)
@@ -31,16 +75,35 @@ def page_html(slug: str, request: Request) -> Response:
 
 @router.get("/api/v1/pages/{slug}")
 def page_bootstrap(slug: str, request: Request) -> JSONResponse:
-    page = _page_for(request, slug)
-    if page is None:
-        # Same body as an unmatched route, so nothing distinguishes the two.
-        raise HTTPException(status_code=404, detail="Not Found")
-    state = read_state(request.app.state.settings.database_path, page)
+    page = _require_page(request, slug)
     body: dict[str, Any] = {
         "title": page.config.title,
-        "acknowledgement": page.config.acknowledgement,
         "fields": {name: field.model_dump() for name, field in page.config.fields.items()},
-        "state": state.values,
-        "acknowledged": state.acknowledged,
+        "state": read_state(request.app.state.settings.database_path, page),
     }
     return JSONResponse(body, headers=NO_STORE)
+
+
+@router.patch("/api/v1/pages/{slug}/state", dependencies=[Depends(require_same_origin)])
+async def save_page_state(slug: str, request: Request) -> JSONResponse:
+    page = _require_page(request, slug)
+    body = await _read_json_body(request)
+    if not isinstance(body, dict) or set(body) != {"fields"} or not isinstance(body["fields"], dict):
+        raise HTTPException(status_code=422, detail="Invalid input")
+    try:
+        fields = validate_fields(page, body["fields"])
+    except InvalidFields as error:
+        return JSONResponse(
+            {"detail": "Invalid input", "errors": error.errors}, status_code=422, headers=NO_STORE
+        )
+    database_path = request.app.state.settings.database_path
+    state = await run_in_threadpool(save_fields, database_path, page, fields)
+    return JSONResponse({"state": state, "saved": True}, headers=NO_STORE)
+
+
+@router.post("/api/v1/pages/{slug}/open", dependencies=[Depends(require_same_origin)])
+def record_page_open(slug: str, request: Request) -> Response:
+    """The first recorded open is what the dashboard shows as "received"."""
+    page = _require_page(request, slug)
+    record_open(request.app.state.settings.database_path, page)
+    return Response(status_code=204, headers=NO_STORE)

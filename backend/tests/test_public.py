@@ -72,13 +72,12 @@ def test_bootstrap_returns_config_and_empty_state(public_client: TestClient) -> 
     assert response.headers["cache-control"] == "no-store"
     assert response.json() == {
         "title": "Beta",
-        "acknowledgement": True,
         "fields": {
             "choice": {"type": "enum", "options": ["a", "b"]},
+            "picks": {"type": "multi", "options": ["x", "y", "z"]},
             "note": {"type": "string", "max_length": 100},
         },
         "state": {},
-        "acknowledged": False,
     }
 
 
@@ -94,12 +93,11 @@ def test_bootstrap_returns_saved_state_for_declared_fields_only(
     saved = {"choice": "b", "removed_field": "old"}
     with connect(with_pages.database_path) as conn:
         conn.execute(
-            "INSERT INTO page_state (page, response_json, acknowledged_at) VALUES (?, ?, ?)",
-            ("beta", json.dumps(saved), "2026-01-01T00:00:00+00:00"),
+            "INSERT INTO page_state (page, response_json) VALUES (?, ?)",
+            ("beta", json.dumps(saved)),
         )
     body = public_client.get(f"/api/v1/pages/{SLUG_B}").json()
     assert body["state"] == {"choice": "b"}
-    assert body["acknowledged"] is True
     # Another page's state is unaffected.
     assert public_client.get(f"/api/v1/pages/{SLUG_A}").json()["state"] == {}
 

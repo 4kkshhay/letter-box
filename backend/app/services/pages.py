@@ -63,7 +63,6 @@ class PageConfig(_Strict):
     slug: Slug
     title: str = Field(min_length=1, max_length=200)
     enabled: bool = True
-    acknowledgement: bool = False
     fields: dict[FieldName, FieldDef] = Field(default_factory=dict, max_length=50)
 
 
