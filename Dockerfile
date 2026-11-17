@@ -8,6 +8,10 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
+# Frontend tests: docker build --target frontend-test
+FROM frontend AS frontend-test
+RUN npm test
+
 # Python app plus the built pages.
 FROM python:3.14-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \

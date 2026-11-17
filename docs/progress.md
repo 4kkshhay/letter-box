@@ -53,3 +53,46 @@ server deploy (deferred item F-006).
 - The executable bit on `scripts/*.sh` must be recorded in git explicitly
   (`git update-index --chmod=+x`) when the checkout is on a filesystem that
   does not track file modes.
+
+## Phase 2 — Page framework
+
+**Status:** in progress (2026-11-17) — everything built and verified
+automatically; the demo page has not yet been viewed in a real browser or on
+a phone, which the exit criterion requires.
+
+### Built
+
+- Backend: page config models and loader with startup validation, saved-state
+  reader, public routes (`/l/<slug>`, bootstrap API), redirect handling for
+  unknown paths.
+- Frontend: build emits `page.json` per page and hash-only asset names;
+  shared API client and `PageRoot` (loading, retry, missing page); page
+  template; `demo-static` page.
+- Tooling: `scripts/new-page.sh`, frontend component tests and a
+  `frontend-test` build stage, `PUBLIC_BIND` for phone testing.
+
+### Verified
+
+| Check | Result |
+| --- | --- |
+| Backend tests | 78 passed (config validation, link serving, redirects, bootstrap API, no writes on GET) |
+| Frontend component tests | 8 passed (API URL, fetch outcomes, loading, retry, missing page, custom views) |
+| `scripts/test.sh` in Docker | Passes |
+| `scripts/new-page.sh` | Rejects invalid names and links, existing pages and links already in use; scaffolds a page with the chosen link |
+| Running container | Loads 1 page; demo link returns its HTML and both assets; unknown slug, page name, `page.json` path and random paths all redirect to `/`; bootstrap API returns config; unknown API key gets generic `404`; admin port does not serve the link |
+| Build output | The slug appears only in `page.json`, which no route serves |
+| Logging | The slug does not appear in container logs after requests |
+
+### Not yet verified
+
+- Demo page opened on a phone (roadmap box "One demo page without inputs"
+  stays unticked until then). A page scaffolded from the template has been
+  confirmed rendering in a desktop browser.
+
+### Notes
+
+- The roadmap item reads "`scripts/new-page` scaffold with generated slug".
+  The file is `scripts/new-page.sh`, and the slug is now chosen and passed in
+  rather than generated (D-035).
+- Rendering in a headless browser inside Docker was not possible in the
+  development environment, which is why component tests were added (D-033).

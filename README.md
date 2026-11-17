@@ -1,12 +1,12 @@
 # LetterBox
 
 A small self-hosted site that serves mobile-first interactive pages from
-permanent, unguessable QR-code links. Each page is an independent directory of
+permanent QR-code links. Each page is an independent directory of
 code and assets, and may save and restore deliberately submitted input. A
 password-protected admin dashboard lists pages, shows responses and visits,
 and generates QR codes.
 
-**Status:** Phase 1 (infrastructure) complete. See the
+**Status:** Phase 2 (page framework) in progress. See the
 [roadmap](docs/roadmap.md) and [progress log](docs/progress.md).
 
 ## Stack
