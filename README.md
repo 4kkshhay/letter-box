@@ -6,8 +6,8 @@ code and assets, and may save and restore deliberately submitted input. A
 password-protected admin dashboard lists pages, shows responses and visits,
 and generates QR codes.
 
-**Status:** initial setup — no application code yet. See the
-[roadmap](docs/roadmap.md).
+**Status:** Phase 1 (infrastructure) complete. See the
+[roadmap](docs/roadmap.md) and [progress log](docs/progress.md).
 
 ## Stack
 
@@ -33,13 +33,20 @@ data/             SQLite file for local runs (gitignored)
 - [Architecture](docs/architecture.md) — stack, boundaries, security rules
 - [Specification](docs/specification.md) — page config, data model, routes
 - [Deployment](docs/deployment.md) — Docker, tunnel, admin, data export
-- [Roadmap](docs/roadmap.md) — phases, acceptance tests, deferred items
+- [Development](docs/development.md) — local setup, commands, dependencies
+- [Roadmap](docs/roadmap.md) — phases, acceptance tests, out-of-scope items
+- [Progress](docs/progress.md) — what was built and verified per phase
+- [Decisions](docs/decisions.md) — decision log
+- [Deferred](docs/deferred.md) — postponed items
 
 ## Quick start
 
-Not available until Phase 1 is complete. The intended workflow is:
+Requires Docker with Compose v2.
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
+./scripts/run.sh     # build, start, wait until healthy
+./scripts/test.sh    # build checks and backend tests
 ```
+
+The public app is then at `http://localhost:8610/` and the admin app at
+`http://localhost:8611/`. See [development](docs/development.md).

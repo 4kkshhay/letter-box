@@ -10,13 +10,13 @@ this file in the same change as the work it describes.
 
 ## Phase 1 — Infrastructure
 
-- [ ] FastAPI skeleton with public and admin apps on separate ports
-- [ ] Vite multi-page + React + TypeScript skeleton
-- [ ] Multi-stage `Dockerfile` (arm64-compatible), Compose with local ports
-- [ ] Run/restart/test scripts
-- [ ] SQLite on the `./data` mount, migration runner
-- [ ] `/health` and `/health/ready`
-- [ ] `docs/development.md`
+- [x] FastAPI skeleton with public and admin apps on separate ports
+- [x] Vite multi-page + React + TypeScript skeleton
+- [x] Multi-stage `Dockerfile` (arm64-compatible), Compose with local ports
+- [x] Run/restart/test scripts
+- [x] SQLite on the `./data` mount, migration runner
+- [x] `/health` and `/health/ready`
+- [x] `docs/development.md`
 
 **Exit:** container starts, readiness healthy, rebuild keeps the database.
 

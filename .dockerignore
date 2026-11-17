@@ -12,6 +12,6 @@ private/
 **/.venv
 **/.pytest_cache
 frontend/dist
-backend/tests
 playwright-report
 test-results
+.github

@@ -1,0 +1,19 @@
+# Base stack. Publishes no host ports; see docker-compose.local.yml.
+name: letterbox
+
+services:
+  app:
+    build:
+      context: .
+      target: app
+    image: letterbox:latest
+    restart: unless-stopped
+    # Must be able to write the data directory on the host.
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8610}
+      DATABASE_PATH: /data/letterbox.db
+    volumes:
+      - ${DATA_DIR:-./data}:/data
+    mem_limit: 256m
