@@ -40,6 +40,15 @@ describe("usePageState", () => {
     expect(saveMock).not.toHaveBeenCalled();
   });
 
+  it("keeps an admin preview read-only", async () => {
+    const { result } = renderHook(() => usePageState({ ...page, admin: true }));
+    act(() => result.current.update({ choice: "b" }, { immediate: true }));
+    await act(() => result.current.saveNow());
+    expect(result.current.values).toEqual({ choice: "a" });
+    expect(result.current.status).toEqual({ kind: "idle" });
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
   it("saves an immediate change at once and shows it before the server answers", async () => {
     const { result } = renderHook(() => usePageState(page));
     act(() => result.current.update({ choice: "b" }, { immediate: true }));

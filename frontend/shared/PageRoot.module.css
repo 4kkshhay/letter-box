@@ -31,6 +31,44 @@
   cursor: pointer;
 }
 
+.admin {
+  position: relative;
+  z-index: 10000;
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: #1f2328;
+  color: white;
+  font: 600 0.875rem/1.3 system-ui, sans-serif;
+}
+
+.admin a {
+  color: white;
+}
+
+.admin form {
+  margin: 0;
+}
+
+.admin button {
+  min-height: 2.25rem;
+  border: 1px solid #ffb4ab;
+  border-radius: 0.35rem;
+  padding: 0 0.75rem;
+  background: transparent;
+  color: #ffdad6;
+  cursor: pointer;
+}
+
+@media (max-width: 32rem) {
+  .admin span {
+    display: none;
+  }
+}
+
 @keyframes pulse {
   0%,
   100% {

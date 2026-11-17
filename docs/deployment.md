@@ -44,6 +44,8 @@ Production `.env` on the server:
 ```dotenv
 APP_ENV=production
 PUBLIC_BASE_URL=https://letterbox.ink
+ADMIN_PASSWORD_HASH='<generated scrypt hash>'
+SESSION_SECRET=<long random value, at least 32 characters>
 TUNNEL_TOKEN=<from the Cloudflare dashboard>
 ```
 
@@ -52,8 +54,11 @@ printed QR codes should work.
 
 ## Admin login
 
-One password, set as `ADMIN_PASSWORD` in `.env`; sessions are signed with
-`SESSION_SECRET`. Use long random values for both.
+One password, stored only as a scrypt hash in `ADMIN_PASSWORD_HASH`; generate
+the assignment with `scripts/hash-admin-password.sh`. Sessions are signed with
+`SESSION_SECRET`, which must be at least 32 characters in production. Keep both
+values in `.env` only. Production cookies are always marked `Secure` from
+`APP_ENV`, without trusting forwarded scheme headers.
 
 ## Data
 

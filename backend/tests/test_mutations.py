@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.public import MAX_BODY_BYTES
 from app.config import Settings
 from app.db.connection import connect
-from tests.conftest import SLUG_A, SLUG_B, SLUG_DISABLED
+from tests.conftest import ADMIN_PASSWORD, SLUG_A, SLUG_B, SLUG_DISABLED
 
 ORIGIN = {"Origin": "http://testserver"}
 
@@ -238,6 +238,7 @@ def test_loading_a_page_records_no_open(public_client: TestClient, with_pages: S
 
 
 def test_admin_app_has_no_public_mutations(admin_client: TestClient) -> None:
+    assert admin_client.post("/login", data={"password": ADMIN_PASSWORD}).status_code == 303
     assert admin_client.post(f"/api/v1/pages/{SLUG_B}/open", headers=ORIGIN).status_code == 404
     assert (
         admin_client.patch(

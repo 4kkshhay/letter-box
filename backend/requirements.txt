@@ -14,12 +14,18 @@ h11==0.16.0
     # via uvicorn
 idna==3.20
     # via anyio
+jinja2==3.1.6
+    # via -r requirements.in
+markupsafe==3.0.4
+    # via jinja2
 opentelemetry-api==1.45.2
     # via fastapi
 pydantic==2.14.3
     # via fastapi
 pydantic-core==2.50.4
     # via pydantic
+segno==1.6.6
+    # via -r requirements.in
 starlette==1.10.0
     # via fastapi
 typing-extensions==4.16.0

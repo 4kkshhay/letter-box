@@ -44,11 +44,11 @@ load alone never acknowledges.
 
 ## Phase 4 — Admin
 
-- [ ] Password login and session
-- [ ] Dashboard: pages, visit count, open times, acknowledgement, responses
-- [ ] Read-only admin view of a page with saved values
-- [ ] Reset page data
-- [ ] QR PNG/SVG download
+- [x] Password login and session
+- [x] Dashboard: pages, visit count, open times, acknowledgement, responses
+- [x] Read-only admin view of a page with saved values
+- [x] Reset page data
+- [x] QR PNG/SVG download
 
 **Exit:** test as visitor → verify in dashboard → reset → QR works locally;
 admin views change nothing; admin routes absent from the public port.

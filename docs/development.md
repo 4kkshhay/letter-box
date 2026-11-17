@@ -29,6 +29,7 @@ directory, builds the image, starts the stack and waits until it is healthy.
 | `./scripts/run.sh` | Build and start, or update a running stack |
 | `./scripts/restart.sh` | Restart without rebuilding |
 | `./scripts/test.sh` | Type-check and build the pages, run backend tests |
+| `./scripts/hash-admin-password.sh` | Generate a scrypt password hash for `.env` |
 | `docker compose logs -f app` | Follow logs |
 | `docker compose down` | Stop and remove the container (data is kept) |
 
@@ -41,6 +42,19 @@ then the backend tests. Extra arguments go to pytest, for example
 
 The same script runs in CI on every pull request
 (`.github/workflows/ci.yml`).
+
+### Admin login
+
+The first-run `.env` accepts the development-only password `change-me`. Replace
+it before using the app with real data:
+
+```bash
+./scripts/hash-admin-password.sh
+```
+
+Copy the printed `ADMIN_PASSWORD_HASH='…'` line into `.env`, and replace
+`SESSION_SECRET` with a long random value. The plain password is never stored.
+The admin dashboard is at `http://localhost:8611/`.
 
 ## Adding a page
 
