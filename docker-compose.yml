@@ -3,11 +3,16 @@ name: letterbox
 
 services:
   app:
-    build:
-      context: .
-      target: app
-    image: letterbox:latest
+    image: ${APP_IMAGE:-letterbox:latest}
     restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     # Must be able to write the data directory on the host.
     user: "${APP_UID:-1000}:${APP_GID:-1000}"
     environment:

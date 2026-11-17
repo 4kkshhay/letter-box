@@ -167,6 +167,14 @@ Mutation rules (`PATCH` and `POST`):
 API calls for an unknown or disabled slug return the same generic `404` as
 any unmatched API path. Page links and `/` also answer `HEAD`.
 
+Every response sends `X-Robots-Tag: noindex, nofollow`,
+`Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, a restrictive
+content security policy and framing/permissions restrictions. Production also
+sends HSTS. HTML, API, health, redirects and errors use `Cache-Control:
+no-store`; only content-hashed files below `/assets/` are cached for one year
+as immutable. Mutation requests with a declared body over 64 KiB are rejected
+before routing.
+
 ### Shared client
 
 Pages wrap themselves in `PageRoot` from `frontend/shared/`. It loads the

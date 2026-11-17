@@ -15,6 +15,7 @@ from app.admin.auth import SESSION_COOKIE, password_hash_configured, valid_sessi
 from app.api import health, public
 from app.api.public import NO_STORE, redirect_to_root
 from app.config import Settings
+from app.security import install_security_middleware
 from app.services.pages import PageRegistry
 
 
@@ -50,6 +51,7 @@ def create_public_app(settings: Settings, pages: PageRegistry) -> FastAPI:
             return redirect_to_root()
         return await http_exception_handler(request, exc)
 
+    install_security_middleware(app, settings)
     return app
 
 
@@ -82,6 +84,7 @@ def create_admin_app(settings: Settings, pages: PageRegistry) -> FastAPI:
     app.include_router(admin.router)
     if assets_dir.is_dir():
         app.mount("/assets", StaticFiles(directory=assets_dir), name="admin-assets")
+    install_security_middleware(app, settings)
     return app
 
 

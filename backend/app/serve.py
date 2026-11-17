@@ -23,6 +23,7 @@ async def serve(settings: Settings, pages: PageRegistry) -> None:
                 port=port,
                 # Request paths contain secret slugs, so no access log.
                 access_log=False,
+                proxy_headers=False,
                 server_header=False,
             )
         )

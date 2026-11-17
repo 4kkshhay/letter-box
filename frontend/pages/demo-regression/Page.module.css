@@ -1,0 +1,51 @@
+.page {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: #e8f0ed;
+  color: #18312a;
+  font-family: system-ui, sans-serif;
+}
+
+.card {
+  width: min(100%, 30rem);
+  padding: 2rem;
+  border: 1px solid #98aea7;
+  border-radius: 1rem;
+  background: #fafffd;
+  box-shadow: 0 1rem 3rem #173a2e18;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: #476e62;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  margin: 0;
+  font-size: clamp(2rem, 10vw, 3.4rem);
+}
+
+.card button {
+  min-height: 44px;
+  margin-top: 1rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 1.25rem;
+  background: #285e4f;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.note {
+  margin-bottom: 0;
+  color: #5d716b;
+  font-size: 0.875rem;
+}

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Write a consistent SQLite snapshot without stopping the running app.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ ! -f .env ]; then
+  echo ".env is required" >&2
+  exit 1
+fi
+
+set -a
+. ./.env
+[ ! -f .release.env ] || . ./.release.env
+set +a
+
+data_dir="${DATA_DIR:-./data}"
+exports_dir="$data_dir/exports"
+filename="letterbox-$(date -u +%Y%m%dT%H%M%SZ).db"
+mkdir -p "$exports_dir"
+
+docker compose exec -T app python -c '
+import os
+import sqlite3
+import sys
+
+target_path = sys.argv[1]
+temporary_path = target_path + ".tmp"
+source = sqlite3.connect("/data/letterbox.db")
+target = sqlite3.connect(temporary_path)
+try:
+    source.backup(target)
+    result = target.execute("PRAGMA integrity_check").fetchone()[0]
+    if result != "ok":
+        raise RuntimeError("export integrity check failed")
+finally:
+    target.close()
+    source.close()
+os.replace(temporary_path, target_path)
+' "/data/exports/$filename"
+
+test -f "$exports_dir/$filename"
+echo "Exported $exports_dir/$filename"

@@ -30,11 +30,17 @@ directory, builds the image, starts the stack and waits until it is healthy.
 | `./scripts/restart.sh` | Restart without rebuilding |
 | `./scripts/test.sh` | Type-check and build the pages, run backend tests |
 | `./scripts/hash-admin-password.sh` | Generate a scrypt password hash for `.env` |
+| `./scripts/export-db` | Snapshot the running SQLite database to `data/exports/` |
 | `docker compose logs -f app` | Follow logs |
 | `docker compose down` | Stop and remove the container (data is kept) |
 
 Never run `docker compose down -v` or delete the data directory unless the
 intent is to wipe saved data.
+
+The container root filesystem is read-only, all Linux capabilities are
+dropped, and only the mounted data directory is writable. Local builds add the
+`build` configuration and loopback ports through `docker-compose.local.yml`;
+the base Compose file remains suitable for image-only production deploys.
 
 `./scripts/test.sh` runs the frontend type-check, build and component tests,
 then the backend tests. Extra arguments go to pytest, for example

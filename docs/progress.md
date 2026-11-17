@@ -160,3 +160,47 @@ the real tunnel during Phase 5 (F-004).
   implements the superseding definition from D-043: received is the first open.
 - Playwright remains unnecessary at this size; F-008 is resolved by the
   existing pytest/Vitest coverage plus the runtime smoke test (D-050).
+
+## Phase 5 — Deployment and regression
+
+**Status:** in progress (2026-11-17). Production secrets, tunnel setup, first
+server deployment and the real HTTPS phone test remain external checks.
+
+### Built
+
+- Production Compose overlay with a pinned, isolated `cloudflared` service;
+  app and tunnel use read-only roots, dropped capabilities and
+  `no-new-privileges`.
+- Two-job GitHub Actions workflow: merges publish a private arm64 GHCR image;
+  manual dispatch performs exact-digest SSH deployment, readiness checks and
+  retention of the seven newest image versions.
+- Global security/cache headers, production HSTS, disabled proxy-header trust
+  and an early request-body limit.
+- Consistent online SQLite export script with integrity check and atomic final
+  file.
+- Third synthetic page (`/l/regression-demo-page`) and page-authoring guide.
+- Dockerfile base images pinned by multi-architecture digest.
+
+### Verified
+
+| Check | Result |
+| --- | --- |
+| Backend tests | 150 passed |
+| Frontend tests | 32 passed; all three pages type-check and build |
+| `scripts/test.sh` in Docker | Passes |
+| GitHub workflows | Both workflow files pass `actionlint` |
+| Production Compose | Merged config validates; no host ports; pinned tunnel image runs with read-only root and dropped capabilities |
+| arm64 release build | `docker buildx build --platform linux/arm64 --target app` passes with pinned bases |
+| Hardened local container | Healthy with read-only root, all capabilities dropped, `no-new-privileges`, init and 256 MB limit applied |
+| Regression deploy | Original two links and their saved state remain; third link works; security/cache headers verified |
+| Database export | Snapshot passes `integrity_check` and matches live state/open row counts |
+
+### Not yet verified
+
+- The release and deployment jobs on GitHub (workflow enters `main` only after
+  this phase is merged and needs the documented SSH secrets).
+- Native arm64 startup on the target server (F-006), tunnel routing for both
+  hostnames, edge rate limiting (F-009), HTTPS phone flow and data survival
+  across a real production redeploy.
+- Whether the synthetic demo pages remain enabled after production validation
+  (F-007).
