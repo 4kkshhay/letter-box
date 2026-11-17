@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.*
+*.md
+docs/
+data/
+output/
+private/
+**/node_modules
+**/__pycache__
+**/.venv
+**/.pytest_cache
+frontend/dist
+backend/tests
+playwright-report
+test-results
