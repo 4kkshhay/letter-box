@@ -35,11 +35,36 @@ directory, builds the image, starts the stack and waits until it is healthy.
 Never run `docker compose down -v` or delete the data directory unless the
 intent is to wipe saved data.
 
-`./scripts/test.sh` passes extra arguments to pytest, for example
+`./scripts/test.sh` runs the frontend type-check, build and component tests,
+then the backend tests. Extra arguments go to pytest, for example
 `./scripts/test.sh -k migrate`.
 
 The same script runs in CI on every pull request
 (`.github/workflows/ci.yml`).
+
+## Adding a page
+
+```bash
+./scripts/new-page.sh my-page some-chosen-words
+./scripts/run.sh                 # rebuild and restart
+```
+
+This copies `frontend/pages/_template` to `frontend/pages/my-page` and sets
+its link to `/l/some-chosen-words` in `page.json`. Edit `Page.tsx`, its
+stylesheet and `page.json`, then open
+`http://localhost:8610/l/some-chosen-words`.
+
+- Never change a page's directory name or slug once its link is in use.
+- The server refuses to start if any `page.json` is invalid; the reason is in
+  `docker compose logs app`.
+- Put images, audio and video in the page's directory and import them from
+  its code, so they are bundled with hashed names.
+
+### Opening a page on a phone
+
+Set `PUBLIC_BIND=0.0.0.0` in `.env`, run `./scripts/run.sh`, and open
+`http://<computer-ip>:8610/l/<slug>` from a phone on the same network. The
+host firewall must allow the port. Set it back to `127.0.0.1` afterwards.
 
 ## Configuration
 
@@ -58,12 +83,14 @@ All settings live in `.env` (see `.env.example`).
 | Stage | Base | Does |
 | --- | --- | --- |
 | `frontend` | `node:24-slim` | `npm ci`, type-check, `vite build` |
+| `frontend-test` | `frontend` | Runs the frontend component tests |
 | `base` | `python:3.14-slim` | Installs pinned Python deps, copies app, migrations and built pages |
 | `test` | `base` | Adds dev deps and tests; runs pytest |
 | `app` | `base` | Runtime image; default target |
 
-On start the container applies pending migrations, then serves the public app
-on port 8000 and the admin app on port 8001.
+On start the container loads and validates the page configs, applies pending
+migrations, then serves the public app on port 8000 and the admin app on
+port 8001.
 
 ## Database migrations
 

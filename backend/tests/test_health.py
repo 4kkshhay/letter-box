@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_admin_app, create_public_app
+from app.services.pages import PageRegistry
 
 
 @pytest.mark.parametrize("client_name", ["public_client", "admin_client"])
@@ -17,7 +18,7 @@ def test_health_and_ready_ok(client_name: str, request: pytest.FixtureRequest) -
 
 
 def test_ready_fails_without_database(settings: Settings) -> None:
-    client = TestClient(create_public_app(settings))
+    client = TestClient(create_public_app(settings, PageRegistry([])))
     assert client.get("/health").status_code == 200
     assert client.get("/health/ready").status_code == 503
     # The readiness check must not create the database as a side effect.
@@ -28,15 +29,15 @@ def test_ready_fails_when_schema_is_behind(migrated: Settings) -> None:
     conn = sqlite3.connect(migrated.database_path)
     conn.execute("PRAGMA user_version = 0")
     conn.close()
-    client = TestClient(create_admin_app(migrated))
+    client = TestClient(create_admin_app(migrated, PageRegistry([])))
     assert client.get("/health/ready").status_code == 503
 
 
-@pytest.mark.parametrize("client_name", ["public_client", "admin_client"])
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
-def test_api_docs_disabled(client_name: str, path: str, request: pytest.FixtureRequest) -> None:
-    client: TestClient = request.getfixturevalue(client_name)
-    assert client.get(path).status_code == 404
+def test_api_docs_disabled(path: str, public_client: TestClient, admin_client: TestClient) -> None:
+    # The public app redirects unknown paths; the admin app answers 404.
+    assert public_client.get(path).status_code == 302
+    assert admin_client.get(path).status_code == 404
 
 
 def test_public_root_serves_built_page_uncached(public_client: TestClient) -> None:
@@ -46,5 +47,6 @@ def test_public_root_serves_built_page_uncached(public_client: TestClient) -> No
     assert response.headers["cache-control"] == "no-store"
 
 
-def test_admin_app_does_not_serve_public_root(admin_client: TestClient) -> None:
+def test_admin_app_does_not_serve_public_routes(admin_client: TestClient) -> None:
     assert admin_client.get("/").status_code == 404
+    assert admin_client.get("/l/" + "a" * 32).status_code == 404

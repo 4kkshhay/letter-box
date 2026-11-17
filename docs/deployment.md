@@ -74,8 +74,9 @@ scp <server>:<project-dir>/data/exports/letterbox-<timestamp>.db .
 
 ## Disabling a link
 
-Immediately: block the path with an edge rule. Permanently: set
-`"enabled": false` in the page's `page.json` and deploy.
+Immediately: block both `/l/<slug>` and `/api/v1/pages/<slug>` with an edge
+rule. Permanently: set `"enabled": false` in the page's `page.json` and
+deploy.
 
 ## Local development
 

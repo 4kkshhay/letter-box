@@ -1,6 +1,7 @@
 # Local development: publish both apps on loopback.
+# Set PUBLIC_BIND=0.0.0.0 to reach the public app from a phone on the same network.
 services:
   app:
     ports:
-      - "127.0.0.1:${PUBLIC_PORT:-8610}:8000"
+      - "${PUBLIC_BIND:-127.0.0.1}:${PUBLIC_PORT:-8610}:8000"
       - "127.0.0.1:${ADMIN_PORT:-8611}:8001"

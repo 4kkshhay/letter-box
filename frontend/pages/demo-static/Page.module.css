@@ -1,0 +1,98 @@
+.page {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom));
+  font-family: Georgia, "Times New Roman", serif;
+  color: #f3ead7;
+  background: radial-gradient(120% 90% at 50% 0%, #2a3566 0%, #141b33 60%, #0b0f1f 100%);
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+  padding: 2rem 1.5rem;
+  border: 1px solid rgb(243 234 215 / 25%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 6%);
+  text-align: center;
+  animation: rise 600ms ease-out both;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.75rem, 7vw, 2.25rem);
+  font-weight: normal;
+  letter-spacing: 0.02em;
+}
+
+.lead {
+  margin: 0;
+  opacity: 0.8;
+}
+
+/* Animates between collapsed and natural height without measuring in script. */
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 400ms ease,
+    opacity 400ms ease;
+}
+
+.reveal[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.revealInner {
+  overflow: hidden;
+  line-height: 1.6;
+}
+
+.revealInner p {
+  margin: 1.25rem 0 0;
+}
+
+.button {
+  min-width: 8rem;
+  min-height: 44px;
+  margin-top: 1.5rem;
+  padding: 0 1.5rem;
+  border: 1px solid #d9b56c;
+  border-radius: 999px;
+  background: transparent;
+  color: #d9b56c;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+.button:hover,
+.button:focus-visible {
+  background: #d9b56c;
+  color: #141b33;
+}
+
+.button:focus-visible {
+  outline: 2px solid #f3ead7;
+  outline-offset: 3px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+
+/* Wider screens: more room around a slightly larger card. */
+@media (min-width: 48rem) {
+  .card {
+    max-width: 32rem;
+    padding: 3rem 2.5rem;
+  }
+}

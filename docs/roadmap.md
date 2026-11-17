@@ -22,11 +22,11 @@ this file in the same change as the work it describes.
 
 ## Phase 2 — Page framework
 
-- [ ] `page.json` loading and startup validation
-- [ ] `/l/<slug>` serving and hashed assets
-- [ ] "Nothing here" root page; redirect for unknown and disabled links
-- [ ] Bootstrap API and shared client (loading and error states)
-- [ ] `scripts/new-page` scaffold with generated slug
+- [x] `page.json` loading and startup validation
+- [x] `/l/<slug>` serving and hashed assets
+- [x] "Nothing here" root page; redirect for unknown and disabled links
+- [x] Bootstrap API and shared client (loading and error states)
+- [x] `scripts/new-page` scaffold with generated slug
 - [ ] One demo page without inputs
 
 **Exit:** the demo opens on a phone from its link; no other URL reveals it.

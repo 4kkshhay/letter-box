@@ -22,7 +22,7 @@
 | QR codes | `segno` | Pure Python, PNG and SVG |
 | Runtime | One multi-stage Docker image, Docker Compose | Node only in the build stage; built for `linux/arm64` |
 | Public access | Cloudflare Tunnel (`cloudflared` container) | No host ports published on the server |
-| Tests | pytest; Playwright for a few browser flows | Not shipped in the image |
+| Tests | pytest; Vitest + Testing Library for shared client code | Not shipped in the image |
 
 Pin dependency versions (lockfiles) when code is added. Animation, 3D or
 media libraries are added only when a page needs them and are bundled only
@@ -86,9 +86,11 @@ frontend/
   pages/<name>/       # one directory per page
     page.json         # slug, title, fields, options
     index.html        # build entry
-    main.tsx          # page code
+    main.tsx          # mounts the page
+    Page.tsx          # page code and styles
     assets/           # images, audio, video for this page
-  shared/             # API client, state hook, common components, base styles
+  pages/_template/    # scaffold copied by new-page; not built
+  shared/             # API client, PageRoot, base styles, tests
 scripts/              # run, restart, test, new-page, export-db
 docs/
 data/                 # SQLite file (gitignored)
@@ -101,17 +103,22 @@ data/                 # SQLite file (gitignored)
 - The directory name is the page's permanent internal id; the `slug` in
   `page.json` is its permanent public link. Neither changes after a link has
   been handed out.
-- The backend loads every `page.json` at startup and refuses to start on a
-  duplicate or too-short slug or an invalid field definition.
-- `scripts/new-page` scaffolds a directory with a freshly generated slug
-  (`secrets.token_urlsafe(24)`).
+- The build writes each page's `page.json` next to its built HTML. The
+  backend loads them from the build output at startup and refuses to start on
+  a duplicate or too-short slug or an invalid field definition. `page.json`
+  is never served.
+- `scripts/new-page.sh <name> <link-words>` copies the template into a new
+  directory and writes the chosen slug into its `page.json`.
 - Pages are independent. Shared code in `frontend/shared/` must stay backward
   compatible; a page that needs different behaviour keeps its own copy.
 
 ## Security and privacy rules
 
-- The slug is a bearer credential: long, random, never derived from names,
-  numbers or dates.
+- The slug is the only access control for a page. It is chosen by the admin
+  as readable hyphenated words, so its strength depends on how many and how
+  unusual the words are; anyone who knows or guesses it can open the page.
+  This trade-off is accepted (see the decision log). Unexpected opens are
+  visible in the open log, and a link can be blocked at the edge at any time.
 - Unknown and disabled slugs behave identically: a redirect to the site root,
   which shows a neutral "Nothing here" message and nothing else.
 - GET requests never change state. Opens are recorded through an explicit
