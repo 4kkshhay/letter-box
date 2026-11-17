@@ -4,7 +4,7 @@
 
 - **Page** — one directory under `frontend/pages/`, reachable at one permanent
   link and printed as one QR code.
-- **Slug** — the words that make up the link: `https://<domain>/l/<slug>`.
+- **Slug** — the words that make up the link: `https://letterbox.ink/l/<slug>`.
 - **Field** — a named input a page may save and restore.
 
 ## Page config
@@ -16,7 +16,6 @@
   "slug": "several-chosen-words",
   "title": "Demo with inputs",
   "enabled": true,
-  "acknowledgement": true,
   "fields": {
     "choice": { "type": "enum", "options": ["a", "b", "c"] },
     "picks": { "type": "multi", "options": ["x", "y", "z"] },
@@ -32,8 +31,7 @@ Rules, checked when the server starts (it refuses to start otherwise):
 - `slug` is lowercase words (letters and digits) separated by single
   hyphens, 10 to 100 characters, and unique across pages. More and less
   common words make a link harder to guess.
-- `title` is required. `enabled` defaults to `true`, `acknowledgement` to
-  `false`.
+- `title` is required. `enabled` defaults to `true`.
 - Field names are lowercase letters, digits and underscores, starting with a
   letter. `enum` and `multi` need a non-empty list of unique `options`;
   `string` takes `max_length` (default 500, at most 5000).
@@ -42,9 +40,8 @@ Rules, checked when the server starts (it refuses to start otherwise):
 Behaviour:
 
 - `fields` is optional. A page without fields saves nothing.
-- Every declared field is saved on submit and restored on later visits.
+- Every declared field is saved automatically and restored on later visits.
   Anything not declared is page-local and never sent to the server.
-- `acknowledgement` adds an optional explicit "received" action.
 - `enabled: false` makes the link behave like an unknown one after the next
   deploy.
 
@@ -52,11 +49,24 @@ Behaviour:
 
 - Saved state is loaded from the server on page load; nothing durable lives in
   localStorage or cookies. Show a loading state until it arrives.
-- Saving happens only on an explicit, clearly labelled action.
+- Saving is automatic; there is no save button. Choices save as soon as
+  they change; text saves after a short pause in typing (800 ms) and when
+  the field loses focus. Anything unsaved is sent when the page is hidden or
+  closed. The page shows whether it is saving, saved, or failed.
+- Visitors cannot clear their answers; clearing is the admin's
+  "Reset page data".
 - The backend validates submissions against `page.json`; unknown fields are
-  rejected with `422` and nothing is written.
-- Partial updates are merged into the stored JSON in one transaction. Last
-  write wins.
+  rejected with `422` and nothing is written. One invalid field rejects the
+  whole update.
+- Values: `enum` takes one option; `multi` takes a list of distinct options
+  (an empty list is a valid answer); `string` takes text up to `max_length`
+  characters (an empty string is a valid answer). `null` removes a saved
+  value.
+- Partial updates are merged into the stored JSON in one statement: given
+  fields replace saved ones, `null` removes them, others are kept. Last write
+  wins.
+- Submitted text is returned exactly as entered; pages must render it as
+  text, never as HTML.
 - Removing or renaming a field in `page.json` must keep or migrate values
   already saved.
 
@@ -68,9 +78,11 @@ Behaviour:
 - **Visits** — derived for display: opens less than 30 minutes apart are
   merged into one visit, so a refresh is not shown as a return. Raw open
   times are kept, so the rule can change without losing data.
-- **Acknowledgement** — recorded only by an explicit action; the first
-  timestamp is kept and repeats are no-ops.
-- Admin previews never record opens or change acknowledgement or saved values.
+- **Received** — derived for display: the time of the first recorded open.
+  It happens automatically; the visitor does nothing. It shows that the page
+  was opened in a browser, not who opened it, so the page should be reset
+  after testing and before the link is handed out.
+- Admin previews never record opens or change saved values.
 
 ## Data model
 
@@ -78,14 +90,14 @@ Two SQLite tables, timestamps in UTC. Migrations never drop data.
 
 ### `page_state`
 
-One row per page, created on first submission or acknowledgement.
+One row per page, created on first submission.
 
 | Column | Type | Purpose |
 | --- | --- | --- |
 | `page` | TEXT PK | Page directory name |
 | `response_json` | TEXT NULL | Latest submitted values; NULL = no response |
 | `responded_at` | DATETIME NULL | Last successful save |
-| `acknowledged_at` | DATETIME NULL | First explicit acknowledgement |
+| `acknowledged_at` | DATETIME NULL | Unused since Phase 3 (kept; migrations never drop columns) |
 
 ### `page_opens`
 
@@ -106,10 +118,9 @@ JSON API under `/api/v1`, `Cache-Control: no-store`.
 | GET | `/` | Neutral "Nothing here" page |
 | GET | `/l/{slug}` | Page HTML; unknown or disabled redirects to `/` |
 | GET | any other path | Redirects to `/` |
-| GET | `/api/v1/pages/{slug}` | Title, fields, saved state, acknowledged flag |
+| GET | `/api/v1/pages/{slug}` | Title, fields, saved state |
 | PATCH | `/api/v1/pages/{slug}/state` | Validate and merge submitted fields |
 | POST | `/api/v1/pages/{slug}/open` | Record one open |
-| POST | `/api/v1/pages/{slug}/acknowledge` | Record first acknowledgement; idempotent |
 | GET | `/assets/*` | Build files named by content hash only; no listing |
 | GET | `/health`, `/health/ready` | Liveness; database readiness |
 
@@ -119,10 +130,8 @@ page's directory name:
 ```json
 {
   "title": "Demo with inputs",
-  "acknowledgement": true,
   "fields": { "choice": { "type": "enum", "options": ["a", "b", "c"] } },
-  "state": { "choice": "b" },
-  "acknowledged": false
+  "state": { "choice": "b" }
 }
 ```
 
@@ -138,6 +147,23 @@ Save request and response:
 { "state": { "choice": "b", "note": "hello" }, "saved": true }
 ```
 
+Validation failure (`422`) names the fields but never echoes values:
+
+```json
+{ "detail": "Invalid input", "errors": { "choice": "must be one of the options" } }
+```
+
+`POST …/open` returns `204` and needs no request body.
+
+Mutation rules (`PATCH` and `POST`):
+
+| Check | Failure |
+| --- | --- |
+| `Origin` header present and its host equals the request `Host` (scheme may differ behind a TLS proxy) | `403` |
+| `Content-Type: application/json` (state only) | `415` |
+| Body at most 64 KiB (state only) | `413` |
+| Body is `{"fields": {…}}` with at least one field | `422` |
+
 API calls for an unknown or disabled slug return the same generic `404` as
 any unmatched API path. Page links and `/` also answer `HEAD`.
 
@@ -146,28 +172,45 @@ any unmatched API path. Page links and `/` also answer `HEAD`.
 Pages wrap themselves in `PageRoot` from `frontend/shared/`. It loads the
 page data before rendering, shows a loading view meanwhile, and a retry view
 on failure; a page may supply its own versions of both. If the API reports
-the page as gone, the browser is sent to `/`.
+the page as gone, the browser is sent to `/`. After the first successful
+load it reports one open; a failed report is ignored.
+
+Pages with inputs use `usePageState(page)` from
+`frontend/shared/usePageState.ts` and keep full control of their own
+presentation. It returns `{ values, status, update, saveNow }`:
+
+- `update(fields, { immediate })` shows the change at once and saves it in
+  the background — immediately for choices, after a pause for typing.
+- Saves never overlap; changes made during a save are sent right after it.
+- A failed save keeps the change and resends it on `saveNow()` (e.g. a
+  "Try again" button or leaving a text field) or with the next change. A
+  change rejected as invalid is not resent.
+- `values` shows the visitor's latest changes; `status` says whether they
+  have reached the server.
+
+`status` is `idle`, `pending`, `done` or `error` with a reason (`invalid`,
+`unavailable`, `failed`); `failureMessage(reason)` gives default wording.
 
 ## Admin app
 
-Separate port, served at `admin.<domain>`. Everything except `/login`
+Separate port, served at `admin.letterbox.ink`. Everything except `/login`
 requires a session.
 
 | Method | Route | Behaviour |
 | --- | --- | --- |
 | GET, POST | `/login` | Password login; sets session cookie |
 | POST | `/logout` | End session |
-| GET | `/` | Dashboard: every page with link, visit count, open times, acknowledgement, saved values |
+| GET | `/` | Dashboard: every page with link, received (first open), visit count, open times, saved values |
 | GET | `/view/{page}` | The page in admin mode |
 | GET | `/api/v1/pages/{page}` | Same payload as the public API plus `"admin": true` |
-| POST | `/pages/{page}/reset` | Delete the page's saved values, acknowledgement and opens (after confirmation) |
+| POST | `/pages/{page}/reset` | Delete the page's saved values and opens (after confirmation) |
 | GET | `/pages/{page}/qr.png`, `/qr.svg` | QR code for the permanent link |
 
 Admin mode, handled by the shared client code when the payload has
 `"admin": true`:
 
 - shows saved values exactly as the visitor would see them;
-- is read-only — save and acknowledge actions are disabled;
+- is read-only — saving is disabled;
 - does not report an open;
 - shows a bar with **Reset page data**.
 

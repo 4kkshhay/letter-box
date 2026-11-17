@@ -6,7 +6,7 @@ code and assets, and may save and restore deliberately submitted input. A
 password-protected admin dashboard lists pages, shows responses and visits,
 and generates QR codes.
 
-**Status:** Phase 2 (page framework) in progress. See the
+**Status:** Phase 3 (inputs and tracking) complete. See the
 [roadmap](docs/roadmap.md) and [progress log](docs/progress.md).
 
 ## Stack

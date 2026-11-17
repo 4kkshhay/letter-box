@@ -1,0 +1,10 @@
+{
+  "slug": "inputs-demo-page",
+  "title": "Inputs demo",
+  "enabled": true,
+  "fields": {
+    "time_of_day": { "type": "enum", "options": ["morning", "afternoon", "evening"] },
+    "drinks": { "type": "multi", "options": ["tea", "coffee", "cocoa", "juice"] },
+    "note": { "type": "string", "max_length": 200 }
+  }
+}

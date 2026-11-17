@@ -56,9 +56,9 @@ def with_pages(migrated: Settings) -> Settings:
         {
             "slug": SLUG_B,
             "title": "Beta",
-            "acknowledgement": True,
             "fields": {
                 "choice": {"type": "enum", "options": ["a", "b"]},
+                "picks": {"type": "multi", "options": ["x", "y", "z"]},
                 "note": {"type": "string", "max_length": 100},
             },
         },

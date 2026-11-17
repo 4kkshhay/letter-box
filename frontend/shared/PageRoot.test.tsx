@@ -1,23 +1,26 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchPage, PageUnavailableError, type PageData } from "./api";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchPage, PageUnavailableError, recordOpen, type PageData } from "./api";
 import { goToRoot } from "./navigate";
 import { PageRoot } from "./PageRoot";
 
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   fetchPage: vi.fn(),
+  recordOpen: vi.fn(),
 }));
 vi.mock("./navigate", () => ({ goToRoot: vi.fn() }));
 
 const fetchPageMock = vi.mocked(fetchPage);
 
+beforeEach(() => {
+  vi.mocked(recordOpen).mockResolvedValue(undefined);
+});
+
 const page: PageData = {
   title: "Loaded title",
-  acknowledgement: false,
   fields: {},
   state: {},
-  acknowledged: false,
 };
 
 const renderRoot = () => render(<PageRoot>{(data) => <h1>{data.title}</h1>}</PageRoot>);

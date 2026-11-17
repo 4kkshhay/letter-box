@@ -27,17 +27,17 @@ this file in the same change as the work it describes.
 - [x] "Nothing here" root page; redirect for unknown and disabled links
 - [x] Bootstrap API and shared client (loading and error states)
 - [x] `scripts/new-page` scaffold with generated slug
-- [ ] One demo page without inputs
+- [x] One demo page without inputs
 
 **Exit:** the demo opens on a phone from its link; no other URL reveals it.
 
 ## Phase 3 — Inputs and tracking
 
-- [ ] Field validation and merge-save
-- [ ] Restore saved state on load
-- [ ] Explicit, idempotent acknowledgement
-- [ ] Record opens with timestamps
-- [ ] Demo page with inputs and acknowledgement
+- [x] Field validation and merge-save
+- [x] Restore saved state on load
+- [x] Explicit, idempotent acknowledgement
+- [x] Record opens with timestamps
+- [x] Demo page with inputs and acknowledgement
 
 **Exit:** saved input restores in another browser; opens are recorded; a page
 load alone never acknowledges.

@@ -56,9 +56,7 @@ server deploy (deferred item F-006).
 
 ## Phase 2 — Page framework
 
-**Status:** in progress (2026-11-17) — everything built and verified
-automatically; the demo page has not yet been viewed in a real browser or on
-a phone, which the exit criterion requires.
+**Status:** done (2026-11-17).
 
 ### Built
 
@@ -82,12 +80,7 @@ a phone, which the exit criterion requires.
 | Running container | Loads 1 page; demo link returns its HTML and both assets; unknown slug, page name, `page.json` path and random paths all redirect to `/`; bootstrap API returns config; unknown API key gets generic `404`; admin port does not serve the link |
 | Build output | The slug appears only in `page.json`, which no route serves |
 | Logging | The slug does not appear in container logs after requests |
-
-### Not yet verified
-
-- Demo page opened on a phone (roadmap box "One demo page without inputs"
-  stays unticked until then). A page scaffolded from the template has been
-  confirmed rendering in a desktop browser.
+| Demo pages on a phone over the local network | Confirmed by the owner (during Phase 3); Phase 2 marked done |
 
 ### Notes
 
@@ -96,3 +89,39 @@ a phone, which the exit criterion requires.
   rather than generated (D-035).
 - Rendering in a headless browser inside Docker was not possible in the
   development environment, which is why component tests were added (D-033).
+
+## Phase 3 — Inputs and tracking
+
+**Status:** done (2026-11-17).
+
+### Built
+
+- Backend: field validation, merge-save and open recording services;
+  `PATCH …/state` and `POST …/open` with same-origin, content-type and
+  body-size checks.
+- Frontend: save and open calls in the API client; auto-saving
+  `usePageState` hook; `PageRoot` reports one open per load; `demo-inputs`
+  page (`/l/inputs-demo-page`) with a choice, multi-choice, note and a
+  local-only colour control.
+
+### Changed during the phase
+
+- An explicit acknowledgement action was built, then removed after review
+  (D-043): "received" is now the first recorded open, with nothing for the
+  visitor to do. The roadmap items "Explicit, idempotent acknowledgement" and
+  "Demo page with inputs and acknowledgement" are ticked as delivered and
+  then superseded; acceptance test A11 no longer applies and is replaced by
+  the first open being shown as received (Phase 4 dashboard).
+- The "Save my answers" button was replaced by auto-save (D-044), and the
+  visitor's "Clear" button was removed in favour of the admin reset (D-045).
+  Acceptance tests A04/A05/A08 now apply to auto-saved changes.
+
+### Verified
+
+| Check | Result |
+| --- | --- |
+| Backend tests | 131 passed (validation, merge, null removal, empty answers, body limits, content type, same-origin, unknown pages, opens, no writes on load, acknowledge endpoint gone) |
+| Frontend tests | 30 passed (API calls and error mapping, no false success, auto-save timing, no overlapping saves, retry and invalid handling, save on hide and unmount, one open per load) |
+| `scripts/test.sh` in Docker | Passes |
+| Running container over HTTP | Save, partial update, `null` removal, `422` on bad option, `403` without `Origin`, open recorded; bootstrap restores saved values; acknowledge endpoint returns `404` |
+| Inputs demo in a browser and on a phone | Confirmed working by the owner, including auto-save |

@@ -21,12 +21,14 @@ clean-ups of other stacks on the host cannot touch it.
 
 ## Hostnames
 
-Configured on the tunnel (hostnames are chosen later):
+The site uses the domain `letterbox.ink`, registered with Cloudflare and
+already on Cloudflare nameservers. Use it for all deployment, tunnel and QR
+configuration. Hostnames configured on the tunnel:
 
 | Hostname | Target |
 | --- | --- |
-| `<domain>` | `http://app:8000` |
-| `admin.<domain>` | `http://app:8001` |
+| `letterbox.ink` | `http://app:8000` |
+| `admin.letterbox.ink` | `http://app:8001` |
 
 - Stable hostnames that outlive the printed QR codes. Never generate QR codes
   for a temporary URL.
@@ -35,10 +37,18 @@ Configured on the tunnel (hostnames are chosen later):
 - Keep `cloudflared` at its default log level; debug logging records request
   paths, which contain the secret slug. Edge-side logs are outside the app's
   control.
-- Optional: an access policy in front of `admin.<domain>` as a second layer.
+- Optional: an access policy in front of `admin.letterbox.ink` as a second layer.
 
-Set `PUBLIC_BASE_URL` to the final HTTPS origin, `APP_ENV=production` and
-`TUNNEL_TOKEN` in `.env`.
+Production `.env` on the server:
+
+```dotenv
+APP_ENV=production
+PUBLIC_BASE_URL=https://letterbox.ink
+TUNNEL_TOKEN=<from the Cloudflare dashboard>
+```
+
+The domain must stay registered (renewal due each November) for as long as
+printed QR codes should work.
 
 ## Admin login
 
@@ -49,7 +59,7 @@ One password, set as `ADMIN_PASSWORD` in `.env`; sessions are signed with
 
 - The SQLite file lives in `./data` on the host, bind-mounted to `/data`. It
   is outside the image, so building and deploying a new image keeps all saved
-  responses, acknowledgements and opens.
+  responses and opens.
 - Data is lost only if `./data` is deleted or the disk fails. Links keep
   working either way, because they are defined in the page configs.
 - Migrations run on start and never drop data.
@@ -69,7 +79,9 @@ scp <server>:<project-dir>/data/exports/letterbox-<timestamp>.db .
 
 1. Add the page directory and deploy.
 2. Open the real link on a phone and exercise it.
-3. Check the result in the admin dashboard, then reset the page.
+3. Check the result in the admin dashboard, then reset the page. This is
+   required: the first open counts as "received", so a test open left in
+   place would show the page as received before it is sent.
 4. Download the QR code from the dashboard.
 
 ## Disabling a link

@@ -41,7 +41,7 @@ into that page.
   rendering adds nothing.
 - **Two listeners.** One process runs a *public* app and an *admin* app on
   separate ports. Admin routes are never mounted on the public app. The
-  tunnel maps `<domain>` and `admin.<domain>` to them.
+  tunnel maps `letterbox.ink` and `admin.letterbox.ink` to them.
 - **Own tunnel.** The Compose project carries its own `cloudflared` container,
   so it shares nothing with other stacks on the server.
 - **No ORM.** Two small tables do not justify SQLAlchemy and Alembic.
@@ -52,8 +52,8 @@ into that page.
 
 ```mermaid
 flowchart TD
-    V[Phone browser] -->|https://domain| CF[Cloudflare edge]
-    A[Admin browser] -->|https://admin.domain| CF
+    V[Phone browser] -->|https://letterbox.ink| CF[Cloudflare edge]
+    A[Admin browser] -->|https://admin.letterbox.ink| CF
     CF --> T[cloudflared container]
     T -->|app:8000| PUB[Public app: pages + public API]
     T -->|app:8001| ADM[Admin app: login, dashboard, preview]
@@ -123,8 +123,8 @@ data/                 # SQLite file (gitignored)
   which shows a neutral "Nothing here" message and nothing else.
 - GET requests never change state. Opens are recorded through an explicit
   request made by the page's script.
-- Stored per page: submitted values, acknowledgement time and the timestamp
-  of each open. No IP addresses or user agents.
+- Stored per page: submitted values and the timestamp of each open; the
+  first open doubles as "received". No IP addresses or user agents.
 - Mutations require a matching `Origin` and a JSON body; no permissive CORS.
 - Validate field names, types, options, lengths and body size server-side.
   Render submitted text as text only.
