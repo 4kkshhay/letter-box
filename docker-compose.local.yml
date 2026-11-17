@@ -1,0 +1,6 @@
+# Local development: publish both apps on loopback.
+services:
+  app:
+    ports:
+      - "127.0.0.1:${PUBLIC_PORT:-8610}:8000"
+      - "127.0.0.1:${ADMIN_PORT:-8611}:8001"

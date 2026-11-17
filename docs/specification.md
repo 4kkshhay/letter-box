@@ -139,6 +139,15 @@ uses `PUBLIC_BASE_URL` and refuses non-HTTPS or local origins when
 Intended pre-send workflow: open the real link as a visitor, check the result
 in the dashboard, reset the page, then hand out the QR code.
 
+## Design
+
+- There is no site-wide visual theme. Each page defines its own look:
+  colours, typography, layout, motion and media.
+- Shared code provides only a CSS reset and behaviour (loading, saving,
+  errors); it imposes no styling on a page.
+- Responsiveness is each page's responsibility and is checked when the page
+  is built, on a phone and at a desktop width.
+
 ## Frontend requirements
 
 - Portrait phone first; degrade gracefully to landscape and wider screens.

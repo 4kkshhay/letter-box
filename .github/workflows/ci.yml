@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+
+# A newer push to the same pull request cancels the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # Type-checks and builds the pages, then runs the backend tests in Docker.
+      - run: ./scripts/test.sh
