@@ -148,8 +148,11 @@ jobs:
           export APP_IMAGE
           "${compose[@]}" config --quiet
           "${compose[@]}" up -d --no-build --remove-orphans --wait
+          # This script arrives on stdin; without </dev/null, exec would consume
+          # the rest of it and the remaining steps would silently never run.
           "${compose[@]}" exec -T app python -c \
-            "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3); urllib.request.urlopen('http://127.0.0.1:8001/health/ready', timeout=3)"
+            "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3); urllib.request.urlopen('http://127.0.0.1:8001/health/ready', timeout=3)" \
+            </dev/null
           printf 'APP_IMAGE=%s\n' "$APP_IMAGE" > .release.env.tmp
           mv .release.env.tmp .release.env
           # Remove this project's older app images only; rollback pulls from GHCR.
