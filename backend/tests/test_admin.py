@@ -44,7 +44,7 @@ def test_dashboard_lists_pages_only(admin_client: TestClient, with_pages: Settin
     assert "Disabled" in response.text
     assert "Responded" in response.text
     # Seeded opens have no visitor timezone, so they show in UTC, never admin-local.
-    assert "Last opened Tue 17 Nov 2026, 12:40 am UTC · 3 opens" in response.text
+    assert "Last opened Tue 17 Nov 2026, 12:40am UTC · 3 opens" in response.text
     assert "Not opened yet" in response.text
     assert SLUG_B not in response.text
     assert "Response" not in response.text.replace("Responded", "")
@@ -80,13 +80,13 @@ def test_page_view_shows_stats_responses_and_opens_by_day(
     assert 'href="/pages/beta/qr.png"' in text
     assert 'action="/pages/beta/reset"' in text
     # Received is the first open in local time; 4 opens, 2 of them new.
-    assert "Tue 17 Nov 2026, 12:00 am UTC" in text
+    assert "Tue 17 Nov 2026, 12:00am UTC" in text
     assert "<dd>4</dd>" in text
     assert "<dd>2</dd>" in text
     # Each open is shown in the visitor's own timezone and grouped by their date:
-    # 12:30 UTC was 1:30 am on 18 Nov for an Auckland visitor.
-    assert "1:30 am NZDT" in text
-    assert "Wed 18 Nov 2026, 1:30 am NZDT" in text  # last opened
+    # 12:30 UTC was 1:30am on 18 Nov for an Auckland visitor.
+    assert "1:30am NZDT" in text
+    assert "Wed 18 Nov 2026, 1:30am NZDT" in text  # last opened
     assert text.index("Wed 18 Nov 2026</h3>") < text.index("Tue 17 Nov 2026</h3>")
     assert "Wellington, NZ" in text
     assert 'class="tag good">New open<' in text
@@ -198,3 +198,22 @@ def test_production_qr_url_requires_public_https_origin(with_pages: Settings) ->
         public_page_url("https://letterbox.ink", page, production=True)
         == f"https://letterbox.ink/l/{SLUG_B}"
     )
+
+
+def test_time_format_uses_visitor_zone_abbreviation() -> None:
+    from datetime import UTC, datetime
+    from zoneinfo import ZoneInfo
+
+    from app.admin.routes import _time
+
+    instant = datetime(2026, 11, 18, 1, 23, tzinfo=UTC)
+    for zone, expected in (
+        ("Pacific/Auckland", "2:23pm NZDT"),
+        ("Asia/Kolkata", "6:53am IST"),
+        ("Asia/Dubai", "5:23am GMT+4"),
+        ("America/St_Johns", "9:53pm NST"),
+        ("Asia/Kathmandu", "7:08am GMT+5:45"),
+    ):
+        assert _time(instant.astimezone(ZoneInfo(zone))) == expected
+    assert _time(instant) == "1:23am UTC"
+

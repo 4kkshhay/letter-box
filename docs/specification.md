@@ -91,7 +91,8 @@ Behaviour:
 - **Visitor timezone** — each open and each save sends the browser's IANA
   timezone (`?tz=`, e.g. `Europe/London`). Times are stored in UTC with that
   timezone beside them, and the admin shows every time in the visitor's own
-  timezone, labelled with its abbreviation, and groups opens by the visitor's
+  timezone, labelled with its abbreviation (`2:30pm NZDT`, `1:23pm IST`; zones
+  with only a numeric abbreviation show as `GMT+4`), and groups opens by the visitor's
   date. Unknown or missing timezones (including rows from before migration
   0004) are shown in UTC; the admin's own timezone is never used.
 - **Received** — derived for display: the time of the first recorded open.

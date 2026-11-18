@@ -33,9 +33,18 @@ templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 throttle = LoginThrottle()
 
 
+def _zone(value: datetime) -> str:
+    """Timezone abbreviation, e.g. "NZDT" or "IST"; numeric ones as "GMT+4"."""
+    name = value.strftime("%Z")
+    if name[:1] not in "+-":
+        return name
+    hours, minutes = name[1:3].lstrip("0") or "0", name[3:5]
+    return f"GMT{name[0]}{hours}{':' + minutes if minutes and minutes != '00' else ''}"
+
+
 def _time(value: datetime) -> str:
-    """Clock time with the visitor's timezone abbreviation, e.g. "9:40 pm GMT"."""
-    return f"{value.strftime('%I:%M %p').lstrip('0').lower()} {value.strftime('%Z')}"
+    """Clock time in the visitor's timezone, e.g. "2:30pm NZDT"."""
+    return f"{value.strftime('%I:%M%p').lstrip('0').lower()} {_zone(value)}"
 
 
 def _day(value: date) -> str:
