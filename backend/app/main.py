@@ -84,7 +84,7 @@ def create_admin_app(settings: Settings, pages: PageRegistry) -> FastAPI:
     app.include_router(admin.router)
     if assets_dir.is_dir():
         app.mount("/assets", StaticFiles(directory=assets_dir), name="admin-assets")
-    install_security_middleware(app, settings)
+    install_security_middleware(app, settings, referrer_policy="same-origin")
     return app
 
 

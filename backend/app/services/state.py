@@ -98,8 +98,13 @@ def save_fields(database_path: Path, page: Page, fields: dict[str, Any]) -> dict
     return _declared_only(page, json.loads(row["response_json"]))
 
 
-def record_open(database_path: Path, page: Page) -> None:
+# Navigation types reported by the browser (PerformanceNavigationTiming.type).
+OPEN_KINDS = frozenset({"navigate", "reload", "back_forward"})
+
+
+def record_open(database_path: Path, page: Page, kind: str | None = None) -> None:
     with connect(database_path) as conn:
         conn.execute(
-            "INSERT INTO page_opens (page, opened_at) VALUES (?, ?)", (page.name, utc_now())
+            "INSERT INTO page_opens (page, opened_at, kind) VALUES (?, ?, ?)",
+            (page.name, utc_now(), kind),
         )

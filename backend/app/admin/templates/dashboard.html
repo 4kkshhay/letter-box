@@ -17,6 +17,11 @@
       .title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .75rem; }
       h2 { margin: 0; font-size: 1.2rem; }
       .disabled, .empty { color: #716b61; }
+      .kind { margin-left: .4rem; padding: .05rem .4rem; border-radius: .25rem; background: #ece7dd; color: #5d574e; font-size: .85rem; }
+      .kind.fresh { background: #dcebdc; color: #24512b; font-weight: 600; }
+      .link { display: grid; gap: .25rem; margin: .75rem 0 0; }
+      .link span { color: #716b61; font-size: .9rem; }
+      .link code { padding: .4rem .55rem; border: 1px solid #d8d1c4; border-radius: .35rem; background: #f9f7f2; user-select: all; -webkit-user-select: all; }
       .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: .75rem 0; }
       a { color: #315c79; }
       dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; margin: 1rem 0 0; }
@@ -40,17 +45,20 @@
             <h2><a href="/view/{{ item.page.name }}">{{ item.page.config.title }}</a></h2>
             {% if not item.page.config.enabled %}<span class="disabled">Disabled</span>{% endif %}
           </div>
+          <p class="link">
+            <span>Public link (copy only; opening it counts as a visit)</span>
+            <code>{{ item.public_url }}</code>
+          </p>
           <div class="actions">
-            <a href="{{ item.public_url }}">Public link</a>
             <a href="/pages/{{ item.page.name }}/qr.png">QR PNG</a>
             <a href="/pages/{{ item.page.name }}/qr.svg">QR SVG</a>
           </div>
           <dl>
             <dt>Received</dt><dd>{{ item.received_at or "Not received" }}</dd>
-            <dt>Visits</dt><dd>{{ item.visits }}</dd>
+            <dt>Opens</dt><dd>{{ item.opens|length }} total · {{ item.new_opens }} new</dd>
             <dt>Open times</dt>
             <dd>
-              {% if item.opens %}<ul>{% for opened in item.opens %}<li>{{ opened }}</li>{% endfor %}</ul>
+              {% if item.opens %}<ul>{% for opened in item.opens %}<li>{{ opened.opened_at }} <span class="kind{% if opened.is_new %} fresh{% endif %}">{{ opened.label }}</span></li>{% endfor %}</ul>
               {% else %}<span class="empty">No opens</span>{% endif %}
             </dd>
             <dt>Response</dt>

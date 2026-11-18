@@ -3,7 +3,6 @@
 import json
 import ipaddress
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -11,30 +10,38 @@ from app.db.connection import connect
 from app.services.pages import Page, PageRegistry
 from app.services.state import read_state
 
-VISIT_GAP = timedelta(minutes=30)
+OPEN_LABELS = {
+    "navigate": "New open",
+    "reload": "Refresh",
+    "back_forward": "Back/forward",
+}
+
+
+@dataclass(frozen=True)
+class Open:
+    opened_at: str
+    kind: str | None
+
+    @property
+    def label(self) -> str:
+        return OPEN_LABELS.get(self.kind or "", "Unknown")
+
+    @property
+    def is_new(self) -> bool:
+        """A real open rather than a refresh; unknown kinds are not counted."""
+        return self.kind in {"navigate", "back_forward"}
 
 
 @dataclass(frozen=True)
 class AdminPage:
     page: Page
     public_url: str
-    opens: list[str]
-    visits: int
+    opens: list[Open]
+    new_opens: int
     received_at: str | None
     has_response: bool
     response: dict[str, Any]
     responded_at: str | None
-
-
-def _visit_count(opens: list[str]) -> int:
-    visits = 0
-    previous: datetime | None = None
-    for value in opens:
-        current = datetime.fromisoformat(value)
-        if previous is None or current - previous >= VISIT_GAP:
-            visits += 1
-        previous = current
-    return visits
 
 
 def public_page_url(public_base_url: str, page: Page, *, production: bool) -> str:
@@ -73,11 +80,11 @@ def dashboard_pages(
                 "SELECT page, response_json, responded_at FROM page_state"
             ).fetchall()
         }
-        opens_by_page: dict[str, list[str]] = {}
+        opens_by_page: dict[str, list[Open]] = {}
         for row in conn.execute(
-            "SELECT page, opened_at FROM page_opens ORDER BY page, opened_at, id"
+            "SELECT page, opened_at, kind FROM page_opens ORDER BY page, opened_at, id"
         ):
-            opens_by_page.setdefault(row["page"], []).append(row["opened_at"])
+            opens_by_page.setdefault(row["page"], []).append(Open(row["opened_at"], row["kind"]))
 
     result = []
     for page in pages.pages:
@@ -90,8 +97,8 @@ def dashboard_pages(
                 page=page,
                 public_url=public_page_url(public_base_url, page, production=production),
                 opens=opens,
-                visits=_visit_count(opens),
-                received_at=opens[0] if opens else None,
+                new_opens=sum(1 for item in opens if item.is_new),
+                received_at=opens[0].opened_at if opens else None,
                 has_response=responded_at is not None,
                 response=response,
                 responded_at=responded_at,

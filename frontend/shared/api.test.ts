@@ -10,6 +10,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("pageApiUrl", () => {
@@ -83,10 +84,36 @@ describe("actions", () => {
     const fetchMock = vi.fn().mockResolvedValue(ok());
     vi.stubGlobal("fetch", fetchMock);
 
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([]);
+
     await recordOpen();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/v1/pages/some-slug/open");
     expect(init).toMatchObject({ method: "POST", keepalive: true });
+  });
+
+  it.each(["navigate", "reload", "back_forward"])("recordOpen sends kind=%s", async (type) => {
+    window.history.replaceState(null, "", "/l/some-slug");
+    const fetchMock = vi.fn().mockResolvedValue(ok());
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type } as PerformanceNavigationTiming,
+    ]);
+
+    await recordOpen();
+    expect(fetchMock.mock.calls[0][0]).toBe(`/api/v1/pages/some-slug/open?kind=${type}`);
+  });
+
+  it("recordOpen omits kinds the server does not record", async () => {
+    window.history.replaceState(null, "", "/l/some-slug");
+    const fetchMock = vi.fn().mockResolvedValue(ok());
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type: "prerender" } as unknown as PerformanceNavigationTiming,
+    ]);
+
+    await recordOpen();
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/pages/some-slug/open");
   });
 
   it.each([

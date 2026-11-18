@@ -24,6 +24,17 @@ def test_security_and_no_store_headers_cover_apps_and_errors(
             assert response.headers[name] == value
 
 
+def test_referrer_policy_keeps_admin_form_origin(
+    public_client: TestClient, admin_client: TestClient
+) -> None:
+    # `no-referrer` makes browsers send `Origin: null` on form posts, which
+    # would fail the admin's same-origin check for reset and sign out.
+    for response in (public_client.get("/"), public_client.get("/missing")):
+        assert response.headers["referrer-policy"] == "no-referrer"
+    for response in (admin_client.get("/"), admin_client.get("/login")):
+        assert response.headers["referrer-policy"] == "same-origin"
+
+
 def test_only_hashed_assets_are_long_cached(public_client: TestClient) -> None:
     asset = public_client.get("/assets/abc123.js")
     assert asset.status_code == 200

@@ -222,6 +222,34 @@ def test_each_open_is_recorded_with_its_time(
     assert open_times(with_pages, "beta") == []
 
 
+@pytest.mark.parametrize("kind", ["navigate", "reload", "back_forward"])
+def test_open_stores_navigation_kind(
+    public_client: TestClient, with_pages: Settings, kind: str
+) -> None:
+    url = f"/api/v1/pages/{SLUG_A}/open?kind={kind}"
+    assert public_client.post(url, headers=ORIGIN).status_code == 204
+    with connect(with_pages.database_path, read_only=True) as conn:
+        assert conn.execute("SELECT kind FROM page_opens").fetchone()["kind"] == kind
+
+
+def test_open_without_kind_is_stored_as_unknown(
+    public_client: TestClient, with_pages: Settings
+) -> None:
+    assert public_client.post(f"/api/v1/pages/{SLUG_A}/open", headers=ORIGIN).status_code == 204
+    with connect(with_pages.database_path, read_only=True) as conn:
+        assert conn.execute("SELECT kind FROM page_opens").fetchone()["kind"] is None
+
+
+@pytest.mark.parametrize("kind", ["prerender", "", "RELOAD", "x" * 500])
+def test_open_with_unknown_kind_is_rejected(
+    public_client: TestClient, with_pages: Settings, kind: str
+) -> None:
+    response = public_client.post(f"/api/v1/pages/{SLUG_A}/open?kind={kind}", headers=ORIGIN)
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Invalid input"}
+    assert open_times(with_pages, "alpha") == []
+
+
 def test_open_changes_nothing_else(public_client: TestClient, with_pages: Settings) -> None:
     public_client.post(f"/api/v1/pages/{SLUG_B}/open", headers=ORIGIN)
     assert saved_row(with_pages) is None

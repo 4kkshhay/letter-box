@@ -163,8 +163,9 @@ the real tunnel during Phase 5 (F-004).
 
 ## Phase 5 — Deployment and regression
 
-**Status:** in progress (2026-11-17). Production secrets, tunnel setup, first
-server deployment and the real HTTPS phone test remain external checks.
+**Status:** in progress (updated 2026-11-18). The arm64 image release, manual
+server deployment and both production tunnel routes are live. The real HTTPS
+phone flow and data survival across a second deployment remain external checks.
 
 ### Built
 
@@ -180,6 +181,8 @@ server deployment and the real HTTPS phone test remain external checks.
   file.
 - Third synthetic page (`/l/regression-demo-page`) and page-authoring guide.
 - Dockerfile base images pinned by multi-architecture digest.
+- Idempotent production bootstrap script for the `letterbox` deployment user,
+  SSH key, Docker access, private `.env` and persistent data directory.
 
 ### Verified
 
@@ -194,13 +197,35 @@ server deployment and the real HTTPS phone test remain external checks.
 | Hardened local container | Healthy with read-only root, all capabilities dropped, `no-new-privileges`, init and 256 MB limit applied |
 | Regression deploy | Original two links and their saved state remain; third link works; security/cache headers verified |
 | Database export | Snapshot passes `integrity_check` and matches live state/open row counts |
+| GitHub release | Push to `main` built and published the private arm64 image for commit `e4d9b53` |
+| Manual production deploy | Exact image deployed successfully to `/srv/letter-box`; both internal readiness checks passed |
+| Native arm64 runtime | App and pinned `cloudflared` containers started successfully on the target server; resolves F-006 |
+| Production tunnel | `letterbox.ink` and `admin.letterbox.ink` route through `letterbox-origin`; public pages return `200`, admin redirects to login and public/admin isolation holds |
+| Production headers | HTTPS responses include HSTS, CSP, `no-store`, frame denial, referrer and permissions policies; Cloudflare reports dynamic responses |
+| Phone over HTTPS | Owner confirmed all pages load on a phone over `letterbox.ink` (2026-11-18) |
+| Visit counting | Owner confirmed raw opens are recorded; opens from another device within 30 minutes merged into one visit under D-008, which led to D-064 |
+| Production same-origin check | A `POST …/open` for a non-existent page with `Origin: https://letterbox.ink` gets `404` (check passed, nothing written); a foreign or missing Origin gets `403` |
+
+### Follow-ups after review (2026-11-18)
+
+- Release build no longer emits provenance/SBOM attestations, so GHCR
+  retention counts real releases (D-060).
+- Deploy removes this project's older app images on the server (D-061).
+- Dashboard public links are copy-only text (D-062).
+- Demo pages stay in production for now (D-063).
+- Opens record the browser's navigation type (migration 0002); the dashboard
+  shows total and new opens and labels each open time, replacing visit
+  merging (D-064). Existing opens show as "Unknown". Verified: 158 backend and
+  36 frontend tests; migration applied to an existing local database with its
+  opens and answers intact.
+- Fixed: admin "Reset page data" and "Sign out" returned `403 Forbidden`
+  because the global `no-referrer` policy made browsers send `Origin: null`
+  on form posts (D-065). Covered by a header test; browser check pending.
 
 ### Not yet verified
 
-- The release and deployment jobs on GitHub (workflow enters `main` only after
-  this phase is merged and needs the documented SSH secrets).
-- Native arm64 startup on the target server (F-006), tunnel routing for both
-  hostnames, edge rate limiting (F-009), HTTPS phone flow and data survival
-  across a real production redeploy.
-- Whether the synthetic demo pages remain enabled after production validation
-  (F-007).
+- Data survival across a second real production deployment (Phase 5 exit;
+  owner will mark the phase done after this).
+- On that deploy: release image is a single GHCR version (D-060) and the
+  server's older app images are removed (D-061).
+- Edge rate limiting for readable links (F-009).

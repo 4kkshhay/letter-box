@@ -55,11 +55,11 @@ admin views change nothing; admin routes absent from the public port.
 
 ## Phase 5 — Deployment and regression
 
-- [ ] `cloudflared` service and tunnel for both hostnames
-- [ ] Deploy to the server in its own directory and Compose project
+- [x] `cloudflared` service and tunnel for both hostnames
+- [x] Deploy to the server in its own directory and Compose project
 - [x] `scripts/export-db`
 - [x] Security headers, safe logging, cache controls, body limits
-- [ ] Real phone test over HTTPS
+- [x] Real phone test over HTTPS
 - [x] Add another demo page; verify earlier links and data are intact
 - [x] `docs/adding-a-page.md`
 
