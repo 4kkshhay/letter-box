@@ -240,6 +240,39 @@ def test_open_without_kind_is_stored_as_unknown(
         assert conn.execute("SELECT kind FROM page_opens").fetchone()["kind"] is None
 
 
+def stored_location(settings: Settings) -> tuple[str | None, str | None, str | None]:
+    with connect(settings.database_path, read_only=True) as conn:
+        row = conn.execute("SELECT city, region, country FROM page_opens").fetchone()
+        return row["city"], row["region"], row["country"]
+
+
+def test_open_stores_cloudflare_location(public_client: TestClient, with_pages: Settings) -> None:
+    headers = {
+        **ORIGIN,
+        "cf-ipcity": "Auckland",
+        "cf-region": "Auckland",
+        "cf-ipcountry": "NZ",
+    }
+    assert public_client.post(f"/api/v1/pages/{SLUG_A}/open", headers=headers).status_code == 204
+    assert stored_location(with_pages) == ("Auckland", "Auckland", "NZ")
+
+
+def test_open_location_is_optional_and_cleaned(
+    public_client: TestClient, with_pages: Settings
+) -> None:
+    headers = {**ORIGIN, "cf-ipcity": "  " + "y" * 200, "cf-ipcountry": "XX"}
+    assert public_client.post(f"/api/v1/pages/{SLUG_A}/open", headers=headers).status_code == 204
+    assert stored_location(with_pages) == ("y" * 100, None, None)
+
+
+def test_open_location_decodes_utf8_place_names(
+    public_client: TestClient, with_pages: Settings
+) -> None:
+    headers = {**ORIGIN, "cf-ipcity": "Zürich".encode("utf-8")}
+    assert public_client.post(f"/api/v1/pages/{SLUG_A}/open", headers=headers).status_code == 204
+    assert stored_location(with_pages)[0] == "Zürich"
+
+
 @pytest.mark.parametrize("kind", ["prerender", "", "RELOAD", "x" * 500])
 def test_open_with_unknown_kind_is_rejected(
     public_client: TestClient, with_pages: Settings, kind: str

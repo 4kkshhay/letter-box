@@ -12,6 +12,7 @@ from app.services.pages import Page
 from app.services.state import (
     OPEN_KINDS,
     InvalidFields,
+    OpenLocation,
     read_state,
     record_open,
     save_fields,
@@ -66,6 +67,36 @@ async def _read_json_body(request: Request) -> Any:
         raise HTTPException(status_code=422, detail="Invalid input") from None
 
 
+def _location_header(request: Request, name: str) -> str | None:
+    """A Cloudflare visitor location header as clean text, or None.
+
+    The origin is reachable only through the tunnel, and Cloudflare sets these
+    headers at its edge. They are approximate and IP-derived; they are shown to
+    the admin as a hint and never used for decisions.
+    """
+    raw = request.headers.get(name)
+    if raw is None:
+        return None
+    try:
+        # HTTP headers arrive as latin-1; Cloudflare sends UTF-8 place names.
+        value = raw.encode("latin-1").decode("utf-8")
+    except UnicodeError:
+        value = raw
+    value = "".join(ch for ch in value if ch.isprintable()).strip()[:100]
+    return value or None
+
+
+def _open_location(request: Request) -> OpenLocation:
+    country = _location_header(request, "cf-ipcountry")
+    if country in {"XX", "T1"}:  # Cloudflare's codes for unknown and Tor
+        country = None
+    return OpenLocation(
+        city=_location_header(request, "cf-ipcity"),
+        region=_location_header(request, "cf-region"),
+        country=country,
+    )
+
+
 @router.api_route("/l/{slug}", methods=["GET", "HEAD"])
 def page_html(slug: str, request: Request) -> Response:
     page = _page_for(request, slug)
@@ -113,5 +144,5 @@ def record_page_open(slug: str, request: Request) -> Response:
     kind = request.query_params.get("kind")
     if kind is not None and kind not in OPEN_KINDS:
         raise HTTPException(status_code=422, detail="Invalid input")
-    record_open(request.app.state.settings.database_path, page, kind)
+    record_open(request.app.state.settings.database_path, page, kind, _open_location(request))
     return Response(status_code=204, headers=NO_STORE)

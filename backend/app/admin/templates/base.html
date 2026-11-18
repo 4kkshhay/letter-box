@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% block title %}LetterBox admin{% endblock %}</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f2ec; --surface: #fffdf9; --surface-2: #f0ebe2; --line: #e2dacd;
+        --text: #26231f; --muted: #6f685e; --accent: #8a4b2d; --accent-text: #fff;
+        --good-bg: #e2efe2; --good-text: #24512b; --quiet-bg: #ece7de; --quiet-text: #5d574e;
+        --danger: #a3261b; --danger-bg: #fbe9e6;
+        --radius: .75rem; --shadow: 0 1px 2px #2b241a0d, 0 .5rem 1.5rem #2b241a0f;
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #171513; --surface: #211e1b; --surface-2: #2a2622; --line: #38332d;
+          --text: #ece6dc; --muted: #a39b8f; --accent: #e09a6f; --accent-text: #1b1310;
+          --good-bg: #1f3423; --good-text: #a6d8ac; --quiet-bg: #2f2a25; --quiet-text: #b9b0a3;
+          --danger: #f08b7f; --danger-bg: #3a1f1b;
+          --shadow: none;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); }
+      a { color: var(--accent); }
+      :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        padding: .9rem max(1rem, calc((100% - 60rem) / 2)); border-bottom: 1px solid var(--line); background: var(--surface); }
+      .brand { color: var(--text); font-weight: 700; letter-spacing: .01em; text-decoration: none; }
+      main { width: min(60rem, calc(100% - 2rem)); margin: 1.75rem auto 3rem; }
+      h1 { margin: 0; font-size: 1.6rem; line-height: 1.25; }
+      h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+      .muted { color: var(--muted); }
+      .card { padding: 1.25rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+      .stack > * + * { margin-top: 1.25rem; }
+      .button, button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.5rem;
+        padding: 0 1rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--surface);
+        color: var(--text); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+      .button:hover, button:hover { background: var(--surface-2); }
+      .button.primary, button.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+      button.danger { border-color: var(--danger); background: var(--danger); color: #fff; }
+      .tag { display: inline-block; padding: .1rem .5rem; border-radius: 999px; background: var(--quiet-bg);
+        color: var(--quiet-text); font-size: .8rem; font-weight: 600; white-space: nowrap; }
+      .tag.good { background: var(--good-bg); color: var(--good-text); }
+      .empty { color: var(--muted); }
+      @media (prefers-reduced-motion: no-preference) { .button, button, .row { transition: background-color .15s; } }
+    </style>
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    {% block body %}
+    <header class="topbar">
+      <a class="brand" href="/">LetterBox</a>
+      <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+    </header>
+    <main>{% block main %}{% endblock %}</main>
+    {% endblock %}
+  </body>
+</html>

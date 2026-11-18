@@ -99,7 +99,7 @@ function AdminPreview({ children }: { children: ReactNode }) {
   return (
     <>
       <nav className={styles.admin} aria-label="Admin preview controls">
-        <a href="/">Dashboard</a>
+        <a href={`/pages/${encodeURIComponent(page)}`}>‹ Page stats</a>
         <span>Read-only preview</span>
         <form method="post" action={`/pages/${encodeURIComponent(page)}/reset`} onSubmit={confirmReset}>
           <button type="submit">Reset page data</button>

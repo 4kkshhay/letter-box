@@ -32,28 +32,77 @@ def seed_page(settings: Settings) -> None:
             )
 
 
-def test_dashboard_lists_pages_tracking_and_responses(
-    admin_client: TestClient, with_pages: Settings
-) -> None:
+def test_dashboard_lists_pages_only(admin_client: TestClient, with_pages: Settings) -> None:
     seed_page(with_pages)
     login(admin_client)
     response = admin_client.get("/")
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
-    assert "Alpha" in response.text
-    assert "Beta" in response.text
-    assert "Hidden" in response.text
+    for name, title in (("alpha", "Alpha"), ("beta", "Beta"), ("hidden", "Hidden")):
+        assert f'href="/pages/{name}"' in response.text
+        assert title in response.text
     assert "Disabled" in response.text
-    assert f"<code>http://localhost:8610/l/{SLUG_B}</code>" in response.text
-    # Copy-only: following the public link would record a visit.
-    assert f'href="http://localhost:8610/l/{SLUG_B}"' not in response.text
-    assert "2026-11-17T00:00:00+00:00" in response.text
-    assert "3 total · 1 new" in response.text
-    assert 'class="kind fresh">New open<' in response.text
-    assert 'class="kind">Refresh<' in response.text
-    assert 'class="kind">Unknown<' in response.text
-    assert "No response" in response.text
-    assert "&#34;&#34;" in response.text or '""' in response.text
+    assert "Responded" in response.text
+    # Last open 00:40 UTC is 13:40 in Auckland (NZDT); details live on the page view.
+    assert "Last opened Tue 17 Nov 2026, 1:40 pm · 3 opens" in response.text
+    assert "Not opened yet" in response.text
+    assert SLUG_B not in response.text
+    assert "Response" not in response.text.replace("Responded", "")
+
+
+def test_page_view_shows_stats_responses_and_opens_by_day(
+    admin_client: TestClient, with_pages: Settings
+) -> None:
+    seed_page(with_pages)
+    with connect(with_pages.database_path) as conn:
+        conn.execute(
+            "INSERT INTO page_opens (page, opened_at, kind, city, region, country)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            ("beta", "2026-11-17T12:30:00+00:00", "navigate", "Wellington", "Wellington", "NZ"),
+        )
+    login(admin_client)
+    response = admin_client.get("/pages/beta")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    text = response.text
+    # Copy-only: following the public link would record an open.
+    assert f"<code>http://localhost:8610/l/{SLUG_B}</code>" in text
+    assert f'href="http://localhost:8610/l/{SLUG_B}"' not in text
+    assert 'href="/view/beta"' in text
+    assert 'href="/pages/beta/qr.png"' in text
+    assert 'action="/pages/beta/reset"' in text
+    # Received is the first open in local time; 4 opens, 2 of them new.
+    assert "Tue 17 Nov 2026, 1:00 pm" in text
+    assert "<dd>4</dd>" in text
+    assert "<dd>2</dd>" in text
+    # Grouped by local date, newest first: 12:30 UTC is 01:30 next day in NZ.
+    assert text.index("Wed 18 Nov 2026") < text.index("Tue 17 Nov 2026</h3>")
+    assert "Wellington, NZ" in text
+    assert 'class="tag good">New open<' in text
+    assert 'class="tag">Refresh<' in text
+    assert 'class="tag">Unknown<' in text
+    assert "Location unknown" in text
+    assert "choice" in text and "(empty)" in text
+
+
+def test_page_view_without_activity(admin_client: TestClient, with_pages: Settings) -> None:
+    login(admin_client)
+    text = admin_client.get("/pages/alpha").text
+    assert "No response yet." in text
+    assert "Not opened yet." in text
+
+
+def test_admin_timezone_must_be_known(with_pages: Settings) -> None:
+    from dataclasses import replace
+
+    import pytest
+
+    from app.main import create_admin_app
+
+    with pytest.raises(RuntimeError, match="ADMIN_TIMEZONE"):
+        create_admin_app(
+            replace(with_pages, admin_timezone="Not/AZone"), load_pages(with_pages.static_dir)
+        )
 
 
 def test_admin_preview_uses_name_is_read_only_and_records_nothing(
@@ -91,7 +140,7 @@ def test_reset_requires_same_origin_and_clears_only_page_data(
     assert admin_client.post("/pages/beta/reset").status_code == 403
     response = admin_client.post("/pages/beta/reset", headers=ORIGIN)
     assert response.status_code == 303
-    assert response.headers["location"] == "/view/beta"
+    assert response.headers["location"] == "/pages/beta"
     with connect(with_pages.database_path, read_only=True) as conn:
         assert conn.execute("SELECT COUNT(*) FROM page_state WHERE page='beta'").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM page_opens WHERE page='beta'").fetchone()[0] == 0
@@ -118,6 +167,7 @@ def test_qr_downloads_are_deterministic(admin_client: TestClient) -> None:
 def test_unknown_admin_page_is_404(admin_client: TestClient) -> None:
     login(admin_client)
     assert admin_client.get("/view/missing").status_code == 404
+    assert admin_client.get("/pages/missing").status_code == 404
     assert admin_client.get("/api/v1/pages/missing").status_code == 404
     assert admin_client.get("/pages/missing/qr.png").status_code == 404
 

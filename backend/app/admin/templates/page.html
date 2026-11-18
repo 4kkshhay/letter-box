@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.page.config.title }} · LetterBox admin{% endblock %}
+{% block head %}
+    <style>
+      .back { display: inline-block; margin-bottom: .75rem; color: var(--muted); text-decoration: none; }
+      .back:hover { color: var(--text); }
+      .heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem 1rem; }
+      .heading h1 { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+      .actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+      .link { display: grid; gap: .35rem; }
+      .link code { display: block; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: .5rem;
+        background: var(--surface-2); overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
+      .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .75rem; margin: 0; }
+      .stat { margin: 0; padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+      .stat dt { color: var(--muted); font-size: .85rem; }
+      .stat dd { margin: .2rem 0 0; font-size: 1.15rem; font-weight: 650; }
+      .stat dd.small { font-size: .98rem; }
+      .answers { display: grid; grid-template-columns: max-content 1fr; gap: .5rem 1rem; margin: 0; }
+      .answers dt { color: var(--muted); }
+      .answers dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+      .day + .day { margin-top: 1.25rem; }
+      .day h3 { margin: 0 0 .4rem; color: var(--muted); font-size: .85rem; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+      .opens { margin: 0; padding: 0; list-style: none; }
+      .opens li { display: grid; grid-template-columns: 5.5rem auto 1fr; align-items: center; gap: .75rem;
+        padding: .55rem 0; border-top: 1px solid var(--line); }
+      .opens li:first-child { border-top: 0; }
+      .opens time { font-variant-numeric: tabular-nums; font-weight: 600; }
+      .place { color: var(--muted); text-align: right; overflow-wrap: anywhere; }
+      details.reset summary { cursor: pointer; color: var(--danger); font-weight: 600; }
+      details.reset[open] { padding: 1rem; border-radius: var(--radius); background: var(--danger-bg); }
+      details.reset p { margin: .75rem 0; }
+      @media (max-width: 34rem) {
+        .answers { grid-template-columns: 1fr; gap: .1rem; }
+        .answers dd { margin-bottom: .6rem; }
+        .opens li { grid-template-columns: auto 1fr; }
+        .place { grid-column: 1 / -1; text-align: left; }
+      }
+    </style>
+{% endblock %}
+{% block main %}
+    {% set page = detail.page %}
+    <div class="stack">
+      <div>
+        <a class="back" href="/">‹ All pages</a>
+        <div class="heading">
+          <h1>{{ page.config.title }}{% if not page.config.enabled %} <span class="tag">Disabled</span>{% endif %}</h1>
+          <div class="actions">
+            <a class="button primary" href="/view/{{ page.name }}">Preview</a>
+            <a class="button" href="/pages/{{ page.name }}/qr.png">QR PNG</a>
+            <a class="button" href="/pages/{{ page.name }}/qr.svg">QR SVG</a>
+          </div>
+        </div>
+      </div>
+
+      <p class="link">
+        <span class="muted">Public link — copy only; opening it here counts as an open.</span>
+        <code>{{ detail.public_url }}</code>
+      </p>
+
+      <dl class="stats">
+        <div class="stat"><dt>Received</dt><dd class="small">{{ detail.received_at|when if detail.received_at else "Not yet" }}</dd></div>
+        <div class="stat"><dt>Opens</dt><dd>{{ detail.opens|length }}</dd></div>
+        <div class="stat"><dt>New opens</dt><dd>{{ detail.new_opens }}</dd></div>
+        <div class="stat"><dt>Last opened</dt><dd class="small">{{ detail.last_opened|when if detail.last_opened else "—" }}</dd></div>
+      </dl>
+
+      <section class="card">
+        <h2>Responses</h2>
+        {% if not detail.has_response %}
+          <p class="empty">No response yet.</p>
+        {% elif not detail.response %}
+          <p class="empty">Answered, then cleared.</p>
+        {% else %}
+          <dl class="answers">
+            {% for name, value in detail.response.items() %}
+              <dt>{{ name }}</dt>
+              <dd>{% if value is string %}{{ value if value else "(empty)" }}{% elif value is sequence %}{{ value|join(", ") if value else "(none)" }}{% else %}{{ value }}{% endif %}</dd>
+            {% endfor %}
+          </dl>
+          <p class="muted">Last updated {{ detail.responded_at|when }}</p>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h2>Opens</h2>
+        {% if not detail.opens %}
+          <p class="empty">Not opened yet.</p>
+        {% else %}
+          {% for day, opens in detail.opens_by_day %}
+            <div class="day">
+              <h3>{{ day|day }}</h3>
+              <ul class="opens">
+                {% for item in opens %}
+                  <li>
+                    <time datetime="{{ item.opened_at.isoformat() }}">{{ item.opened_at|time }}</time>
+                    <span class="tag{% if item.is_new %} good{% endif %}">{{ item.label }}</span>
+                    <span class="place">{{ item.location or "Location unknown" }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </section>
+
+      <details class="reset">
+        <summary>Reset page data…</summary>
+        <p>Deletes this page's saved responses and every recorded open. The link and page stay the same. This cannot be undone.</p>
+        <form method="post" action="/pages/{{ page.name }}/reset">
+          <button class="danger" type="submit">Reset page data</button>
+        </form>
+      </details>
+    </div>
+{% endblock %}

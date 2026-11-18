@@ -1,76 +1,41 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noindex, nofollow">
-    <title>LetterBox dashboard</title>
+{% extends "base.html" %}
+{% block title %}Pages · LetterBox admin{% endblock %}
+{% block head %}
     <style>
-      :root { color-scheme: light; font: 15px/1.5 system-ui, sans-serif; }
-      * { box-sizing: border-box; }
-      body { margin: 0; background: #f4f1ea; color: #25231f; }
-      header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem max(1rem, calc((100% - 72rem) / 2)); background: #25231f; color: white; }
-      h1 { margin: 0; font-size: 1.35rem; }
-      header button { border: 1px solid #ffffff66; border-radius: .35rem; padding: .45rem .8rem; background: transparent; color: white; cursor: pointer; }
-      main { width: min(72rem, calc(100% - 2rem)); margin: 2rem auto; }
-      .page { margin-bottom: 1.25rem; padding: 1.25rem; border: 1px solid #d8d1c4; border-radius: .65rem; background: white; }
-      .title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .75rem; }
-      h2 { margin: 0; font-size: 1.2rem; }
-      .disabled, .empty { color: #716b61; }
-      .kind { margin-left: .4rem; padding: .05rem .4rem; border-radius: .25rem; background: #ece7dd; color: #5d574e; font-size: .85rem; }
-      .kind.fresh { background: #dcebdc; color: #24512b; font-weight: 600; }
-      .link { display: grid; gap: .25rem; margin: .75rem 0 0; }
-      .link span { color: #716b61; font-size: .9rem; }
-      .link code { padding: .4rem .55rem; border: 1px solid #d8d1c4; border-radius: .35rem; background: #f9f7f2; user-select: all; -webkit-user-select: all; }
-      .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: .75rem 0; }
-      a { color: #315c79; }
-      dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; margin: 1rem 0 0; }
-      dt { font-weight: 700; }
-      dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-      ul { margin: .35rem 0 0; padding-left: 1.25rem; }
-      code { white-space: pre-wrap; overflow-wrap: anywhere; }
-      @media (max-width: 35rem) { dl { grid-template-columns: 1fr; } dd { margin-bottom: .5rem; } }
+      .list { margin: 1.25rem 0 0; padding: 0; list-style: none; border: 1px solid var(--line);
+        border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+      .list li + li { border-top: 1px solid var(--line); }
+      .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .25rem 1rem;
+        padding: 1rem 1.25rem; color: inherit; text-decoration: none; }
+      .row:hover { background: var(--surface-2); }
+      .name { font-size: 1.05rem; font-weight: 650; }
+      .meta { grid-column: 1; color: var(--muted); font-size: .9rem; }
+      .tags { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: .35rem; }
+      .chevron { color: var(--muted); font-size: 1.25rem; }
     </style>
-  </head>
-  <body>
-    <header>
-      <h1>LetterBox dashboard</h1>
-      <form method="post" action="/logout"><button type="submit">Sign out</button></form>
-    </header>
-    <main>
-      {% if not pages %}<p>No pages are configured.</p>{% endif %}
-      {% for item in pages %}
-        <article class="page">
-          <div class="title">
-            <h2><a href="/view/{{ item.page.name }}">{{ item.page.config.title }}</a></h2>
-            {% if not item.page.config.enabled %}<span class="disabled">Disabled</span>{% endif %}
-          </div>
-          <p class="link">
-            <span>Public link (copy only; opening it counts as a visit)</span>
-            <code>{{ item.public_url }}</code>
-          </p>
-          <div class="actions">
-            <a href="/pages/{{ item.page.name }}/qr.png">QR PNG</a>
-            <a href="/pages/{{ item.page.name }}/qr.svg">QR SVG</a>
-          </div>
-          <dl>
-            <dt>Received</dt><dd>{{ item.received_at or "Not received" }}</dd>
-            <dt>Opens</dt><dd>{{ item.opens|length }} total · {{ item.new_opens }} new</dd>
-            <dt>Open times</dt>
-            <dd>
-              {% if item.opens %}<ul>{% for opened in item.opens %}<li>{{ opened.opened_at }} <span class="kind{% if opened.is_new %} fresh{% endif %}">{{ opened.label }}</span></li>{% endfor %}</ul>
-              {% else %}<span class="empty">No opens</span>{% endif %}
-            </dd>
-            <dt>Response</dt>
-            <dd>
-              {% if not item.has_response %}<span class="empty">No response</span>
-              {% elif not item.response %}<span class="empty">Empty response</span>
-              {% else %}<ul>{% for name, value in item.response.items() %}<li><strong>{{ name }}</strong>: <code>{{ value|tojson }}</code></li>{% endfor %}</ul>{% endif %}
-            </dd>
-            <dt>Last update</dt><dd>{{ item.responded_at or "—" }}</dd>
-          </dl>
-        </article>
-      {% endfor %}
-    </main>
-  </body>
-</html>
+{% endblock %}
+{% block main %}
+      <h1>Pages</h1>
+      {% if not pages %}
+        <p class="empty">No pages are configured.</p>
+      {% else %}
+        <ul class="list">
+          {% for item in pages %}
+            <li>
+              <a class="row" href="/pages/{{ item.page.name }}">
+                <span class="name">{{ item.page.config.title }}</span>
+                <span class="tags">
+                  {% if not item.page.config.enabled %}<span class="tag">Disabled</span>{% endif %}
+                  {% if item.has_response %}<span class="tag good">Responded</span>{% endif %}
+                  <span class="chevron" aria-hidden="true">›</span>
+                </span>
+                <span class="meta">
+                  {% if item.last_opened %}Last opened {{ item.last_opened|when }} · {{ item.total_opens }} open{{ "" if item.total_opens == 1 else "s" }}
+                  {% else %}Not opened yet{% endif %}
+                </span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+{% endblock %}

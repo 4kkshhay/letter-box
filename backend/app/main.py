@@ -4,6 +4,8 @@ They share services and the database but are served on separate ports, and
 admin routes are never mounted on the public app.
 """
 
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, Response
@@ -62,7 +64,12 @@ def create_admin_app(settings: Settings, pages: PageRegistry) -> FastAPI:
         raise RuntimeError("SESSION_SECRET is missing")
     if settings.is_production and len(settings.session_secret) < 32:
         raise RuntimeError("SESSION_SECRET must be at least 32 characters in production")
+    try:
+        tz = ZoneInfo(settings.admin_timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise RuntimeError("ADMIN_TIMEZONE is not a known timezone") from None
     app = _base_app(settings, pages)
+    app.state.tz = tz
     assets_dir = settings.static_dir / "assets"
 
     @app.middleware("http")

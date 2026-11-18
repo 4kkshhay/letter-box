@@ -154,9 +154,15 @@ jobs:
           mv .release.env.tmp .release.env
           # Remove this project's older app images only; rollback pulls from GHCR.
           current_id=$(docker image inspect --format '{{.Id}}' "$APP_IMAGE")
-          docker image ls --no-trunc --format '{{.ID}}' "${requested_image%:*}" | sort -u |
-            while read -r image_id; do
-              [ "$image_id" = "$current_id" ] || docker image rm -f "$image_id" >/dev/null 2>&1 || true
+          echo "Keeping current image $current_id"
+          docker image ls --no-trunc --filter "reference=${requested_image%:*}:*" --format '{{.ID}}' |
+            sort -u | while read -r image_id; do
+              [ "$image_id" != "$current_id" ] || continue
+              if docker image rm -f "$image_id" >/dev/null; then
+                echo "Removed old image $image_id"
+              else
+                echo "Warning: could not remove old image $image_id" >&2
+              fi
             done
           "${compose[@]}" ps
           REMOTE

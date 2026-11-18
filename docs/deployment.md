@@ -100,6 +100,10 @@ configuration. Hostnames configured on the tunnel:
 | `letterbox.ink` | `http://app:8000` |
 | `admin.letterbox.ink` | `http://app:8001` |
 
+- Turn on **Rules → Settings → Managed Transforms → Add visitor location
+  headers** for `letterbox.ink`. The app reads `cf-ipcity`, `cf-region` and
+  `cf-ipcountry` to show an approximate location per open; without it,
+  locations show as unknown and nothing else changes.
 - Stable hostnames that outlive the printed QR codes. Never generate QR codes
   for a temporary URL.
 - Do not cache HTML or API responses at the edge; pass the app's cache headers
