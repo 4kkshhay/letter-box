@@ -163,9 +163,9 @@ the real tunnel during Phase 5 (F-004).
 
 ## Phase 5 — Deployment and regression
 
-**Status:** in progress (updated 2026-11-18). The arm64 image release, manual
-server deployment and both production tunnel routes are live. The real HTTPS
-phone flow and data survival across a second deployment remain external checks.
+**Status:** done (2026-11-18). The arm64 image release, manual server
+deployment and both production tunnel routes are live; a second deployment
+kept all data.
 
 ### Built
 
@@ -220,12 +220,27 @@ phone flow and data survival across a second deployment remain external checks.
   opens and answers intact.
 - Fixed: admin "Reset page data" and "Sign out" returned `403 Forbidden`
   because the global `no-referrer` policy made browsers send `Origin: null`
-  on form posts (D-065). Covered by a header test; browser check pending.
+  on form posts (D-065). Covered by a header test and confirmed in a browser.
+
+### Second production deployment (2026-11-18, commit `e275647`)
+
+| Check | Result |
+| --- | --- |
+| Data survival | Saved answers and opens from before the deploy were intact |
+| Admin reset | "Reset page data" works in production (D-065) |
+| Open labels | Opens are labelled by navigation type in the production dashboard (D-064) |
+| Running stack | App healthy on the new image; tunnel container unchanged |
 
 ### Not yet verified
 
-- Data survival across a second real production deployment (Phase 5 exit;
-  owner will mark the phase done after this).
-- On that deploy: release image is a single GHCR version (D-060) and the
-  server's older app images are removed (D-061).
+- Old-image cleanup (D-061): on the second deploy the step ran without error
+  but left the previous image (removed by hand afterwards; `docker image rm -f`
+  works on the server). Errors were suppressed, so the cause is unknown;
+  listing by repository and by `reference=` filter both work on the server
+  (Docker 29.6.1, containerd image store). The step now logs each removal and
+  any failure with Docker's error; confirm on the next deploy.
+- `docker ps` shows the app image as a bare ID; this is display only. The
+  container's configured image is the GHCR reference by digest and the image
+  keeps its tag, so manual Compose commands do not pull again.
+- GHCR retention counts one version per release (D-060).
 - Edge rate limiting for readable links (F-009).

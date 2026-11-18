@@ -6,7 +6,7 @@ code and assets, and may save and restore deliberately submitted input. A
 password-protected admin dashboard lists pages, shows responses and opens,
 and generates QR codes.
 
-**Status:** Phase 5 (deployment and regression) in progress. See the
+**Status:** Phases 1–5 complete; real pages (Phase 6) next. See the
 [roadmap](docs/roadmap.md) and [progress log](docs/progress.md).
 
 ## Stack
