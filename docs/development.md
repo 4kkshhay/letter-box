@@ -27,6 +27,7 @@ directory, builds the image, starts the stack and waits until it is healthy.
 | Command | Purpose |
 | --- | --- |
 | `./scripts/run.sh` | Build and start, or update a running stack |
+| `./scripts/dev.sh` | Hot-reload dev server for pages at `http://localhost:5173` (Ctrl-C stops it) |
 | `./scripts/restart.sh` | Restart without rebuilding |
 | `./scripts/test.sh` | Type-check and build the pages, run backend tests |
 | `./scripts/hash-admin-password.sh` | Generate a scrypt password hash for `.env` |
@@ -79,6 +80,33 @@ stylesheet and `page.json`, then open
   `docker compose logs app`.
 - Put images, audio and video in the page's directory and import them from
   its code, so they are bundled with hashed names.
+
+### Hot-reload dev server
+
+```bash
+./scripts/run.sh   # once, so the app knows the page (after new-page.sh or a page.json change)
+./scripts/dev.sh   # then open http://localhost:5173/l/<link-words>
+```
+
+Edits to a page's code, styles and assets show in the browser within a second
+or two, without rebuilding the image. Everything runs in Docker:
+
+- The `dev` service (`docker-compose.local.yml`, profile `dev`) runs Vite in
+  the same pinned `node:24-slim` image as the build, with `frontend/`
+  bind-mounted. `node_modules` lives in the `frontend-node-modules` Docker
+  volume and is reinstalled only when `package-lock.json` changes.
+- File changes are detected by polling, because a container gets no change
+  events from a Windows-drive bind mount.
+- A dev-only Vite plugin serves each page at its real `/l/<slug>` URL; unknown
+  links fall back to the root page.
+- `/api` is proxied to the running `app` container with the browser's `Host`
+  kept, so the same-origin check passes. Pages load, save and record opens in
+  the local database, exactly as on port 8610.
+- The app reads page configs from its built image, so a new page or a
+  `page.json` change needs `./scripts/run.sh` before the dev server can load
+  its data.
+- Use `./scripts/run.sh` and port 8610 to check the real production build
+  before committing.
 
 ### Opening a page on a phone
 

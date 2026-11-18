@@ -81,8 +81,22 @@ async function send(path: string, init: RequestInit): Promise<Response> {
  * Saves the given fields and returns all saved values afterwards.
  * `keepalive` lets a save started as the page closes still complete.
  */
+/** The visitor's IANA timezone, so the admin sees times as the visitor did. */
+export function visitorTimezone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
+function query(params: Record<string, string | null>): string {
+  const entries = Object.entries(params).filter((entry): entry is [string, string] => !!entry[1]);
+  return entries.length ? `?${new URLSearchParams(entries)}` : "";
+}
+
 export async function saveFields(fields: FieldUpdate): Promise<Record<string, FieldValue>> {
-  const response = await send("/state", {
+  const response = await send(`/state${query({ tz: visitorTimezone() })}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fields }),
@@ -116,7 +130,6 @@ export function navigationKind(): string | null {
  * lets it finish if the page is closed.
  */
 export async function recordOpen(): Promise<void> {
-  const kind = navigationKind();
-  const query = kind ? `?kind=${kind}` : "";
-  await send(`/open${query}`, { method: "POST", keepalive: true });
+  const params = query({ kind: navigationKind(), tz: visitorTimezone() });
+  await send(`/open${params}`, { method: "POST", keepalive: true });
 }

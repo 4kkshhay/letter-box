@@ -95,7 +95,7 @@ frontend/
     assets/           # images, audio, video for this page
   pages/_template/    # scaffold copied by new-page; not built
   shared/             # API client, PageRoot, base styles, tests
-scripts/              # run, restart, test, new-page, export-db
+scripts/              # run, restart, dev, test, new-page, export-db
 .github/workflows/    # pull-request tests; image release and SSH deployment
 docs/
 data/                 # SQLite file (gitignored)
@@ -129,7 +129,8 @@ data/                 # SQLite file (gitignored)
 - GET requests never change state. Opens are recorded through an explicit
   request made by the page's script.
 - Stored per page: submitted values, and for each open its timestamp,
-  navigation type and approximate city-level location from Cloudflare; the
+  navigation type, visitor timezone and approximate city-level location
+  from Cloudflare; the
   first open doubles as "received". No IP addresses, coordinates or user
   agents.
 - Mutations require a matching `Origin` and a JSON body; no permissive CORS.

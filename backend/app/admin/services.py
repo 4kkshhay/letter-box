@@ -3,11 +3,11 @@
 import ipaddress
 import json
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.db.connection import connect
 from app.services.pages import Page, PageRegistry
@@ -79,14 +79,19 @@ class PageDetail:
 
     @property
     def opens_by_day(self) -> list[tuple[date, list[Open]]]:
-        """Opens grouped by local date, newest day and newest open first."""
+        """Opens grouped by the visitor's local date, newest first."""
         days: dict[date, list[Open]] = {}
         for item in sorted(self.opens, key=lambda o: o.opened_at, reverse=True):
             days.setdefault(item.opened_at.date(), []).append(item)
         return list(days.items())
 
 
-def _local(value: str, tz: ZoneInfo) -> datetime:
+def _local(value: str, tz_name: str | None) -> datetime:
+    """A stored UTC time in the visitor's own timezone, or UTC if unknown."""
+    try:
+        tz = ZoneInfo(tz_name) if tz_name else UTC
+    except (ZoneInfoNotFoundError, ValueError):
+        tz = UTC
     return datetime.fromisoformat(value).astimezone(tz)
 
 
@@ -114,13 +119,18 @@ def public_page_url(public_base_url: str, page: Page, *, production: bool) -> st
     return f"{base}/l/{page.config.slug}"
 
 
-def page_summaries(database_path: Path, pages: PageRegistry, tz: ZoneInfo) -> list[PageSummary]:
+def page_summaries(database_path: Path, pages: PageRegistry) -> list[PageSummary]:
     with connect(database_path, read_only=True) as conn:
-        opens = {
-            row["page"]: (row["total"], row["last"])
+        totals = {
+            row["page"]: row["total"]
+            for row in conn.execute("SELECT page, COUNT(*) AS total FROM page_opens GROUP BY page")
+        }
+        last = {
+            row["page"]: _local(row["opened_at"], row["tz"])
             for row in conn.execute(
-                "SELECT page, COUNT(*) AS total, MAX(opened_at) AS last"
-                " FROM page_opens GROUP BY page"
+                "SELECT page, opened_at, tz FROM page_opens AS o WHERE id = ("
+                " SELECT id FROM page_opens WHERE page = o.page"
+                " ORDER BY opened_at DESC, id DESC LIMIT 1)"
             )
         }
         responded = {
@@ -129,12 +139,11 @@ def page_summaries(database_path: Path, pages: PageRegistry, tz: ZoneInfo) -> li
         }
     result = []
     for page in pages.pages:
-        total, last = opens.get(page.name, (0, None))
         result.append(
             PageSummary(
                 page=page,
-                total_opens=total,
-                last_opened=_local(last, tz) if last else None,
+                total_opens=totals.get(page.name, 0),
+                last_opened=last.get(page.name),
                 has_response=page.name in responded,
             )
         )
@@ -142,22 +151,23 @@ def page_summaries(database_path: Path, pages: PageRegistry, tz: ZoneInfo) -> li
 
 
 def page_detail(
-    database_path: Path, page: Page, public_base_url: str, tz: ZoneInfo, *, production: bool
+    database_path: Path, page: Page, public_base_url: str, *, production: bool
 ) -> PageDetail:
     with connect(database_path, read_only=True) as conn:
         state = conn.execute(
-            "SELECT response_json, responded_at FROM page_state WHERE page = ?", (page.name,)
+            "SELECT response_json, responded_at, responded_tz FROM page_state WHERE page = ?",
+            (page.name,),
         ).fetchone()
         opens = [
             Open(
-                opened_at=_local(row["opened_at"], tz),
+                opened_at=_local(row["opened_at"], row["tz"]),
                 kind=row["kind"],
                 city=row["city"],
                 region=row["region"],
                 country=row["country"],
             )
             for row in conn.execute(
-                "SELECT opened_at, kind, city, region, country FROM page_opens"
+                "SELECT opened_at, kind, city, region, country, tz FROM page_opens"
                 " WHERE page = ? ORDER BY opened_at, id",
                 (page.name,),
             )
@@ -169,7 +179,7 @@ def page_detail(
         opens=opens,
         has_response=responded_at is not None,
         response=json.loads(state["response_json"] or "{}") if state else {},
-        responded_at=_local(responded_at, tz) if responded_at else None,
+        responded_at=_local(responded_at, state["responded_tz"]) if responded_at else None,
     )
 
 

@@ -13,6 +13,7 @@ from app.services.state import (
     OPEN_KINDS,
     InvalidFields,
     OpenLocation,
+    visitor_timezone,
     read_state,
     record_open,
     save_fields,
@@ -129,7 +130,8 @@ async def save_page_state(slug: str, request: Request) -> JSONResponse:
             {"detail": "Invalid input", "errors": error.errors}, status_code=422, headers=NO_STORE
         )
     database_path = request.app.state.settings.database_path
-    state = await run_in_threadpool(save_fields, database_path, page, fields)
+    tz = visitor_timezone(request.query_params.get("tz"))
+    state = await run_in_threadpool(save_fields, database_path, page, fields, tz)
     return JSONResponse({"state": state, "saved": True}, headers=NO_STORE)
 
 
@@ -138,11 +140,18 @@ def record_page_open(slug: str, request: Request) -> Response:
     """The first recorded open is what the dashboard shows as "received".
 
     `?kind=` is the browser's navigation type; without it the open is stored
-    with an unknown kind.
+    with an unknown kind. `?tz=` is the visitor's IANA timezone; an unknown
+    value is ignored rather than failing the open.
     """
     page = _require_page(request, slug)
     kind = request.query_params.get("kind")
     if kind is not None and kind not in OPEN_KINDS:
         raise HTTPException(status_code=422, detail="Invalid input")
-    record_open(request.app.state.settings.database_path, page, kind, _open_location(request))
+    record_open(
+        request.app.state.settings.database_path,
+        page,
+        kind,
+        _open_location(request),
+        visitor_timezone(request.query_params.get("tz")),
+    )
     return Response(status_code=204, headers=NO_STORE)

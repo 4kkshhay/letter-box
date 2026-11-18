@@ -88,6 +88,12 @@ Behaviour:
   stripped of control characters and capped at 100 characters; country codes
   `XX` and `T1` are stored as unknown. Missing headers (local development)
   store NULL, shown as "Location unknown".
+- **Visitor timezone** — each open and each save sends the browser's IANA
+  timezone (`?tz=`, e.g. `Europe/London`). Times are stored in UTC with that
+  timezone beside them, and the admin shows every time in the visitor's own
+  timezone, labelled with its abbreviation, and groups opens by the visitor's
+  date. Unknown or missing timezones (including rows from before migration
+  0004) are shown in UTC; the admin's own timezone is never used.
 - **Received** — derived for display: the time of the first recorded open.
   It happens automatically; the visitor does nothing. It shows that the page
   was opened in a browser, not who opened it, so the page should be reset
@@ -107,6 +113,7 @@ One row per page, created on first submission.
 | `page` | TEXT PK | Page directory name |
 | `response_json` | TEXT NULL | Latest submitted values; NULL = no response |
 | `responded_at` | DATETIME NULL | Last successful save |
+| `responded_tz` | TEXT NULL | Visitor's timezone at the last save (migration 0004) |
 | `acknowledged_at` | DATETIME NULL | Unused since Phase 3 (kept; migrations never drop columns) |
 
 ### `page_opens`
@@ -120,6 +127,7 @@ One row per reported page load.
 | `opened_at` | DATETIME | |
 | `kind` | TEXT NULL | Browser navigation type: `navigate`, `reload` or `back_forward` (added by migration 0002) |
 | `city`, `region`, `country` | TEXT NULL | Approximate location from Cloudflare headers (added by migration 0003) |
+| `tz` | TEXT NULL | Visitor's IANA timezone from the browser (migration 0004) |
 
 ## Public app
 
@@ -131,8 +139,8 @@ JSON API under `/api/v1`, `Cache-Control: no-store`.
 | GET | `/l/{slug}` | Page HTML; unknown or disabled redirects to `/` |
 | GET | any other path | Redirects to `/` |
 | GET | `/api/v1/pages/{slug}` | Title, fields, saved state |
-| PATCH | `/api/v1/pages/{slug}/state` | Validate and merge submitted fields |
-| POST | `/api/v1/pages/{slug}/open?kind=` | Record one open with its optional navigation type |
+| PATCH | `/api/v1/pages/{slug}/state?tz=` | Validate and merge submitted fields; optional visitor timezone |
+| POST | `/api/v1/pages/{slug}/open?kind=&tz=` | Record one open with its optional navigation type and visitor timezone |
 | GET | `/assets/*` | Build files named by content hash only; no listing |
 | GET | `/health`, `/health/ready` | Liveness; database readiness |
 
@@ -165,7 +173,9 @@ Validation failure (`422`) names the fields but never echoes values:
 { "detail": "Invalid input", "errors": { "choice": "must be one of the options" } }
 ```
 
-`POST …/open` returns `204` and needs no request body. `kind` is optional;
+`tz` on either route must be a known IANA name; anything else is ignored
+rather than failing the request. `POST …/open` returns `204` and needs no
+request body. `kind` is optional;
 any value other than `navigate`, `reload` or `back_forward` gets `422`.
 
 Mutation rules (`PATCH` and `POST`):
@@ -227,7 +237,7 @@ failed attempts within five minutes temporarily throttle all logins.
 | GET, POST | `/login` | Password login; sets session cookie |
 | POST | `/logout` | End session |
 | GET | `/` | Dashboard: list of pages with status, last opened and open count; each links to its page view |
-| GET | `/pages/{page}` | Page view: copy-only public link, preview and QR buttons, Received / Opens / New opens / Last opened, saved responses, opens grouped by local date with time, kind and location, and a reset confirmation |
+| GET | `/pages/{page}` | Page view: copy-only public link, preview and QR buttons, Received / Opens / New opens / Last opened, saved responses, opens grouped by the visitor's date with time, kind and location, and a reset confirmation |
 | GET | `/view/{page}` | The page in admin mode |
 | GET | `/api/v1/pages/{page}` | Same payload as the public API plus `"admin": true` |
 | POST | `/pages/{page}/reset` | Delete the page's saved values and opens (after confirmation), then return to the page view |
@@ -242,9 +252,8 @@ Admin mode, handled by the shared client code when the payload has
 - shows a bar with a link back to the page view and **Reset page data**.
 
 Admin pages are server-rendered without scripts; reset is confirmed by
-expanding a disclosure on the page view. Dates and times are shown in
-`ADMIN_TIMEZONE` (default `Pacific/Auckland`); the admin app refuses to start
-with an unknown timezone. The page view distinguishes "no response" from
+expanding a disclosure on the page view. Dates and times are shown in the
+visitor's own timezone (see Tracking). The page view distinguishes "no response" from
 "answered, then cleared". QR generation
 uses `PUBLIC_BASE_URL` and refuses non-HTTPS or local origins when
 `APP_ENV=production`.

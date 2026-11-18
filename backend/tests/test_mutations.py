@@ -246,6 +246,33 @@ def stored_location(settings: Settings) -> tuple[str | None, str | None, str | N
         return row["city"], row["region"], row["country"]
 
 
+def test_open_stores_visitor_timezone(public_client: TestClient, with_pages: Settings) -> None:
+    url = f"/api/v1/pages/{SLUG_A}/open?kind=navigate&tz=Europe/London"
+    assert public_client.post(url, headers=ORIGIN).status_code == 204
+    with connect(with_pages.database_path, read_only=True) as conn:
+        assert conn.execute("SELECT tz FROM page_opens").fetchone()["tz"] == "Europe/London"
+
+
+@pytest.mark.parametrize("tz", ["Not/AZone", "../../etc/passwd", "x" * 200, ""])
+def test_open_ignores_unknown_timezone(
+    public_client: TestClient, with_pages: Settings, tz: str
+) -> None:
+    url = f"/api/v1/pages/{SLUG_A}/open?tz={tz}"
+    assert public_client.post(url, headers=ORIGIN).status_code == 204
+    with connect(with_pages.database_path, read_only=True) as conn:
+        assert conn.execute("SELECT tz FROM page_opens").fetchone()["tz"] is None
+
+
+def test_save_stores_visitor_timezone(public_client: TestClient, with_pages: Settings) -> None:
+    response = public_client.patch(
+        f"/api/v1/pages/{SLUG_B}/state?tz=America/New_York",
+        json={"fields": {"choice": "a"}},
+        headers=ORIGIN,
+    )
+    assert response.status_code == 200
+    assert saved_row(with_pages)["responded_tz"] == "America/New_York"
+
+
 def test_open_stores_cloudflare_location(public_client: TestClient, with_pages: Settings) -> None:
     headers = {
         **ORIGIN,
