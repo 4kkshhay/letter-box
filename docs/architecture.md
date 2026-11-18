@@ -128,8 +128,10 @@ data/                 # SQLite file (gitignored)
   which shows a neutral "Nothing here" message and nothing else.
 - GET requests never change state. Opens are recorded through an explicit
   request made by the page's script.
-- Stored per page: submitted values and the timestamp of each open; the
-  first open doubles as "received". No IP addresses or user agents.
+- Stored per page: submitted values, and for each open its timestamp,
+  navigation type and approximate city-level location from Cloudflare; the
+  first open doubles as "received". No IP addresses, coordinates or user
+  agents.
 - Mutations require a matching `Origin` and a JSON body; no permissive CORS.
 - Validate field names, types, options, lengths and body size server-side.
   Render submitted text as text only.

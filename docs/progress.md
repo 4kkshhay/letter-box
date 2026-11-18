@@ -231,6 +231,22 @@ kept all data.
 | Open labels | Opens are labelled by navigation type in the production dashboard (D-064) |
 | Running stack | App healthy on the new image; tunnel container unchanged |
 
+### Admin redesign and open locations (2026-11-18)
+
+- Dashboard reduced to a page list (status, last opened, open count); new
+  `/pages/<name>` view holds the public link, preview/QR actions, summary
+  stats, responses, opens grouped by local date with kind and location, and a
+  reset confirmation (D-067). Login restyled on the same base layout; light
+  and dark themes; no scripts.
+- Opens store approximate city/region/country from Cloudflare headers
+  (migration 0003, D-066). Requires the managed transform on the zone.
+- Times shown in `ADMIN_TIMEZONE`, default `Pacific/Auckland`.
+- Verified: 165 backend and 36 frontend tests; migration 0003 applied to the
+  existing local database; both admin pages rendered locally with real data
+  and a located test open (removed afterwards).
+- Owner checked both admin pages in a browser. Not yet verified: locations in production after
+  the Cloudflare transform is enabled.
+
 ### Not yet verified
 
 - Old-image cleanup (D-061): on the second deploy the step ran without error

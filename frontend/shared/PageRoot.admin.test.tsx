@@ -28,7 +28,7 @@ it("shows admin controls without reporting an open", async () => {
   await screen.findByRole("heading", { name: "Beta" });
   expect(screen.getByText("Read-only preview")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Reset page data" })).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Dashboard" }).getAttribute("href")).toBe("/");
+  expect(screen.getByRole("link", { name: "‹ Page stats" }).getAttribute("href")).toBe("/pages/beta");
   expect(document.querySelector("form")?.getAttribute("action")).toBe("/pages/beta/reset");
   expect(recordOpen).not.toHaveBeenCalled();
 });

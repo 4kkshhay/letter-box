@@ -1,5 +1,6 @@
 """Authenticated admin routes: dashboard, preview, reset and QR downloads."""
 
+from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import parse_qs
@@ -19,7 +20,8 @@ from app.admin.auth import (
 )
 from app.admin.services import (
     admin_page_payload,
-    dashboard_pages,
+    page_detail,
+    page_summaries,
     public_page_url,
     reset_page,
 )
@@ -29,6 +31,21 @@ from app.services.pages import Page
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 throttle = LoginThrottle()
+
+
+def _time(value: datetime) -> str:
+    return value.strftime("%I:%M %p").lstrip("0").lower()
+
+
+def _day(value: date) -> str:
+    return f"{value.strftime('%a')} {value.day} {value.strftime('%b %Y')}"
+
+
+def _when(value: datetime) -> str:
+    return f"{_day(value.date())}, {_time(value)}"
+
+
+templates.env.filters.update(time=_time, day=_day, when=_when)
 
 
 def _page(request: Request, name: str) -> Page:
@@ -111,17 +128,27 @@ def logout(request: Request) -> RedirectResponse:
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> Response:
     settings = request.app.state.settings
+    pages = page_summaries(settings.database_path, request.app.state.pages, request.app.state.tz)
+    return templates.TemplateResponse(
+        request, "dashboard.html", {"pages": pages}, headers=NO_STORE
+    )
+
+
+@router.get("/pages/{name}", response_class=HTMLResponse)
+def page_stats(name: str, request: Request) -> Response:
+    settings = request.app.state.settings
     try:
-        pages = dashboard_pages(
+        detail = page_detail(
             settings.database_path,
-            request.app.state.pages,
+            _page(request, name),
             settings.public_base_url,
+            request.app.state.tz,
             production=settings.is_production,
         )
     except ValueError as error:
         raise HTTPException(status_code=503, detail=str(error)) from None
     return templates.TemplateResponse(
-        request, "dashboard.html", {"pages": pages}, headers=NO_STORE
+        request, "page.html", {"detail": detail}, headers=NO_STORE
     )
 
 
@@ -142,7 +169,7 @@ def page_bootstrap(name: str, request: Request) -> JSONResponse:
 def reset(name: str, request: Request) -> RedirectResponse:
     require_same_origin(request)
     reset_page(request.app.state.settings.database_path, _page(request, name))
-    return RedirectResponse(f"/view/{name}", status_code=303, headers=NO_STORE)
+    return RedirectResponse(f"/pages/{name}", status_code=303, headers=NO_STORE)
 
 
 def _qr_response(name: str, request: Request, kind: str) -> Response:

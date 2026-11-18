@@ -1,6 +1,7 @@
 """A page's saved answers and recorded opens."""
 
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -102,9 +103,22 @@ def save_fields(database_path: Path, page: Page, fields: dict[str, Any]) -> dict
 OPEN_KINDS = frozenset({"navigate", "reload", "back_forward"})
 
 
-def record_open(database_path: Path, page: Page, kind: str | None = None) -> None:
+@dataclass(frozen=True)
+class OpenLocation:
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+
+
+def record_open(
+    database_path: Path,
+    page: Page,
+    kind: str | None = None,
+    location: OpenLocation = OpenLocation(),
+) -> None:
     with connect(database_path) as conn:
         conn.execute(
-            "INSERT INTO page_opens (page, opened_at, kind) VALUES (?, ?, ?)",
-            (page.name, utc_now(), kind),
+            "INSERT INTO page_opens (page, opened_at, kind, city, region, country)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (page.name, utc_now(), kind, location.city, location.region, location.country),
         )

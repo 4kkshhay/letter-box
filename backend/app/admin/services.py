@@ -1,10 +1,13 @@
 """Database reads and writes used only by the admin app."""
 
-import json
 import ipaddress
+import json
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 from app.db.connection import connect
 from app.services.pages import Page, PageRegistry
@@ -19,8 +22,11 @@ OPEN_LABELS = {
 
 @dataclass(frozen=True)
 class Open:
-    opened_at: str
+    opened_at: datetime
     kind: str | None
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
 
     @property
     def label(self) -> str:
@@ -31,22 +37,60 @@ class Open:
         """A real open rather than a refresh; unknown kinds are not counted."""
         return self.kind in {"navigate", "back_forward"}
 
+    @property
+    def location(self) -> str | None:
+        parts: list[str] = []
+        for part in (self.city, self.region, self.country):
+            if part and part not in parts:
+                parts.append(part)
+        return ", ".join(parts) or None
+
 
 @dataclass(frozen=True)
-class AdminPage:
+class PageSummary:
+    """One row of the dashboard list."""
+
+    page: Page
+    total_opens: int
+    last_opened: datetime | None
+    has_response: bool
+
+
+@dataclass(frozen=True)
+class PageDetail:
     page: Page
     public_url: str
     opens: list[Open]
-    new_opens: int
-    received_at: str | None
     has_response: bool
     response: dict[str, Any]
-    responded_at: str | None
+    responded_at: datetime | None
+
+    @property
+    def received_at(self) -> datetime | None:
+        return min((item.opened_at for item in self.opens), default=None)
+
+    @property
+    def last_opened(self) -> datetime | None:
+        return max((item.opened_at for item in self.opens), default=None)
+
+    @property
+    def new_opens(self) -> int:
+        return sum(1 for item in self.opens if item.is_new)
+
+    @property
+    def opens_by_day(self) -> list[tuple[date, list[Open]]]:
+        """Opens grouped by local date, newest day and newest open first."""
+        days: dict[date, list[Open]] = {}
+        for item in sorted(self.opens, key=lambda o: o.opened_at, reverse=True):
+            days.setdefault(item.opened_at.date(), []).append(item)
+        return list(days.items())
+
+
+def _local(value: str, tz: ZoneInfo) -> datetime:
+    return datetime.fromisoformat(value).astimezone(tz)
 
 
 def public_page_url(public_base_url: str, page: Page, *, production: bool) -> str:
-    from urllib.parse import urlsplit
-
     base = public_base_url.rstrip("/")
     parsed = urlsplit(base)
     local_names = {"localhost", "127.0.0.1", "::1"}
@@ -70,41 +114,63 @@ def public_page_url(public_base_url: str, page: Page, *, production: bool) -> st
     return f"{base}/l/{page.config.slug}"
 
 
-def dashboard_pages(
-    database_path: Path, pages: PageRegistry, public_base_url: str, *, production: bool
-) -> list[AdminPage]:
+def page_summaries(database_path: Path, pages: PageRegistry, tz: ZoneInfo) -> list[PageSummary]:
     with connect(database_path, read_only=True) as conn:
-        states = {
-            row["page"]: row
+        opens = {
+            row["page"]: (row["total"], row["last"])
             for row in conn.execute(
-                "SELECT page, response_json, responded_at FROM page_state"
-            ).fetchall()
+                "SELECT page, COUNT(*) AS total, MAX(opened_at) AS last"
+                " FROM page_opens GROUP BY page"
+            )
         }
-        opens_by_page: dict[str, list[Open]] = {}
-        for row in conn.execute(
-            "SELECT page, opened_at, kind FROM page_opens ORDER BY page, opened_at, id"
-        ):
-            opens_by_page.setdefault(row["page"], []).append(Open(row["opened_at"], row["kind"]))
-
+        responded = {
+            row["page"]
+            for row in conn.execute("SELECT page FROM page_state WHERE responded_at IS NOT NULL")
+        }
     result = []
     for page in pages.pages:
-        state = states.get(page.name)
-        opens = opens_by_page.get(page.name, [])
-        responded_at = state["responded_at"] if state else None
-        response = json.loads(state["response_json"] or "{}") if state else {}
+        total, last = opens.get(page.name, (0, None))
         result.append(
-            AdminPage(
+            PageSummary(
                 page=page,
-                public_url=public_page_url(public_base_url, page, production=production),
-                opens=opens,
-                new_opens=sum(1 for item in opens if item.is_new),
-                received_at=opens[0].opened_at if opens else None,
-                has_response=responded_at is not None,
-                response=response,
-                responded_at=responded_at,
+                total_opens=total,
+                last_opened=_local(last, tz) if last else None,
+                has_response=page.name in responded,
             )
         )
     return result
+
+
+def page_detail(
+    database_path: Path, page: Page, public_base_url: str, tz: ZoneInfo, *, production: bool
+) -> PageDetail:
+    with connect(database_path, read_only=True) as conn:
+        state = conn.execute(
+            "SELECT response_json, responded_at FROM page_state WHERE page = ?", (page.name,)
+        ).fetchone()
+        opens = [
+            Open(
+                opened_at=_local(row["opened_at"], tz),
+                kind=row["kind"],
+                city=row["city"],
+                region=row["region"],
+                country=row["country"],
+            )
+            for row in conn.execute(
+                "SELECT opened_at, kind, city, region, country FROM page_opens"
+                " WHERE page = ? ORDER BY opened_at, id",
+                (page.name,),
+            )
+        ]
+    responded_at = state["responded_at"] if state else None
+    return PageDetail(
+        page=page,
+        public_url=public_page_url(public_base_url, page, production=production),
+        opens=opens,
+        has_response=responded_at is not None,
+        response=json.loads(state["response_json"] or "{}") if state else {},
+        responded_at=_local(responded_at, tz) if responded_at else None,
+    )
 
 
 def admin_page_payload(database_path: Path, page: Page) -> dict[str, Any]:

@@ -80,6 +80,14 @@ Behaviour:
   "New open", "Refresh", "Back/forward" or "Unknown" and counts new ones
   (`navigate`, `back_forward`) separately. No device or browser identity is
   stored, so opens from different devices are not told apart.
+- **Location** — each open stores the approximate city, region and country
+  from Cloudflare's visitor location headers (`cf-ipcity`, `cf-region`,
+  `cf-ipcountry`), which require the "Add visitor location headers" managed
+  transform on the zone. It is IP-derived and often off (mobile carriers,
+  VPNs, private relays); no IP address or coordinates are stored. Values are
+  stripped of control characters and capped at 100 characters; country codes
+  `XX` and `T1` are stored as unknown. Missing headers (local development)
+  store NULL, shown as "Location unknown".
 - **Received** — derived for display: the time of the first recorded open.
   It happens automatically; the visitor does nothing. It shows that the page
   was opened in a browser, not who opened it, so the page should be reset
@@ -111,6 +119,7 @@ One row per reported page load.
 | `page` | TEXT | Page directory name (indexed) |
 | `opened_at` | DATETIME | |
 | `kind` | TEXT NULL | Browser navigation type: `navigate`, `reload` or `back_forward` (added by migration 0002) |
+| `city`, `region`, `country` | TEXT NULL | Approximate location from Cloudflare headers (added by migration 0003) |
 
 ## Public app
 
@@ -217,10 +226,11 @@ failed attempts within five minutes temporarily throttle all logins.
 | --- | --- | --- |
 | GET, POST | `/login` | Password login; sets session cookie |
 | POST | `/logout` | End session |
-| GET | `/` | Dashboard: every page with link, received (first open), open count with new opens counted separately, labelled open times, saved values |
+| GET | `/` | Dashboard: list of pages with status, last opened and open count; each links to its page view |
+| GET | `/pages/{page}` | Page view: copy-only public link, preview and QR buttons, Received / Opens / New opens / Last opened, saved responses, opens grouped by local date with time, kind and location, and a reset confirmation |
 | GET | `/view/{page}` | The page in admin mode |
 | GET | `/api/v1/pages/{page}` | Same payload as the public API plus `"admin": true` |
-| POST | `/pages/{page}/reset` | Delete the page's saved values and opens (after confirmation) |
+| POST | `/pages/{page}/reset` | Delete the page's saved values and opens (after confirmation), then return to the page view |
 | GET | `/pages/{page}/qr.png`, `/qr.svg` | QR code for the permanent link |
 
 Admin mode, handled by the shared client code when the payload has
@@ -229,9 +239,13 @@ Admin mode, handled by the shared client code when the payload has
 - shows saved values exactly as the visitor would see them;
 - is read-only — saving is disabled;
 - does not report an open;
-- shows a bar with **Reset page data**.
+- shows a bar with a link back to the page view and **Reset page data**.
 
-The dashboard distinguishes "no response" from "empty answer". QR generation
+Admin pages are server-rendered without scripts; reset is confirmed by
+expanding a disclosure on the page view. Dates and times are shown in
+`ADMIN_TIMEZONE` (default `Pacific/Auckland`); the admin app refuses to start
+with an unknown timezone. The page view distinguishes "no response" from
+"answered, then cleared". QR generation
 uses `PUBLIC_BASE_URL` and refuses non-HTTPS or local origins when
 `APP_ENV=production`.
 
