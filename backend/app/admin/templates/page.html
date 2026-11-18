@@ -93,7 +93,7 @@
                 {% for item in opens %}
                   <li>
                     <time datetime="{{ item.opened_at.isoformat() }}">{{ item.opened_at|time }}</time>
-                    <span class="tag{% if item.is_new %} good{% endif %}">{{ item.label }}</span>
+                    <span class="tag{% if item.kind == "navigate" %} good{% endif %}">{{ item.label }}</span>
                     <span class="place">{{ item.location or "Location unknown" }}</span>
                   </li>
                 {% endfor %}

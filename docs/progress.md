@@ -249,12 +249,13 @@ kept all data.
 
 ### Not yet verified
 
-- Old-image cleanup (D-061): on the second deploy the step ran without error
-  but left the previous image (removed by hand afterwards; `docker image rm -f`
-  works on the server). Errors were suppressed, so the cause is unknown;
-  listing by repository and by `reference=` filter both work on the server
-  (Docker 29.6.1, containerd image store). The step now logs each removal and
-  any failure with Docker's error; confirm on the next deploy.
+- Old-image cleanup (D-061): found the cause after the third deploy. The
+  remote deploy script is sent over SSH on stdin, and the readiness check
+  (`docker compose exec -T`) read the rest of that stdin, so every command
+  after it silently never ran: writing `.release.env`, the image cleanup and
+  the final `ps`. The deploy still reported success. Fixed by giving the exec
+  `</dev/null` (reproduced and verified locally). Confirm on the next deploy:
+  the log shows "Keeping current image …" and `.release.env` exists.
 - `docker ps` shows the app image as a bare ID; this is display only. The
   container's configured image is the GHCR reference by digest and the image
   keeps its tag, so manual Compose commands do not pull again.
