@@ -7,15 +7,16 @@ scope by design are listed in the [roadmap](roadmap.md).
 
 | ID | Raised | Item | Why deferred | Revisit |
 | --- | --- | --- | --- | --- |
-| F-001 | Phase 1 | Vite dev server with an API proxy for hot-reload page development | Needs Node on the development machine or a containerised dev server; rebuilding through `run.sh` is enough for demo pages (reviewed in Phase 2) | Before building the first real page |
 | F-002 | Phase 1 | Linters and formatters (ruff, ESLint, Prettier) | Little code so far; keeps tooling minimal | When the codebase grows or style drifts |
-| F-007 | Phase 2 | Deciding whether demo pages are deployed to the server (keep, disable or remove) | Kept in production for now (D-063) | After Phase 5 is closed |
-| F-009 | Phase 2 | Rate limit on `/l/*` and the page API to slow link guessing | Readable links make guessing possible; best done as a Cloudflare rule on `letterbox.ink` | Phase 5 |
+| F-007 | Phase 2 | Whether demo pages stay in production (keep, disable or remove) | Kept for now as diagnostics; not a final decision (D-063) | Later |
+| F-009 | Phase 2 | Rate limit on `/l/*` and `/api/v1/pages/*` to slow link guessing | Optional hardening; readable links make guessing possible; best done as a Cloudflare rate-limiting rule on `letterbox.ink` | Later, before real pages are widely shared |
+| F-012 | Phase 5 | Cloudflare Access (Zero Trust, free tier) in front of `admin.letterbox.ink`, e.g. one-time email code for the owner's address | Optional hardening; stops password brute-forcing and the shared five-attempt login lockout being triggered by others; the app's own login stays as the second layer | Later |
 
 ## Resolved
 
 | ID | Raised | Item | Resolution |
 | --- | --- | --- | --- |
+| F-001 | Phase 1 | Vite dev server with an API proxy for hot-reload page development | Added as the Docker `dev` service and `scripts/dev.sh` (D-068) |
 | F-003 | Phase 1 | CI running `scripts/test.sh` | Added in Phase 1 as a pull-request workflow (D-024) |
 | F-008 | Phase 2 | Browser end-to-end tests (Playwright) for the acceptance flows | Not added in Phase 4: pytest, Vitest and a disposable-container HTTP smoke test cover the flow without the extra browser dependency (D-050) |
 | F-010 | Phase 3 | Store the admin password as a hash and provide a generator | Added stdlib scrypt hashing, `ADMIN_PASSWORD_HASH` and `scripts/hash-admin-password.sh` in Phase 4 (D-047) |

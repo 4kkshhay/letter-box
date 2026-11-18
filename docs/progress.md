@@ -240,22 +240,43 @@ kept all data.
   and dark themes; no scripts.
 - Opens store approximate city/region/country from Cloudflare headers
   (migration 0003, D-066). Requires the managed transform on the zone.
-- Times shown in `ADMIN_TIMEZONE`, default `Pacific/Auckland`.
+- Times were first shown in an admin timezone; replaced the same day by the
+  visitor's own timezone (D-069).
 - Verified: 165 backend and 36 frontend tests; migration 0003 applied to the
   existing local database; both admin pages rendered locally with real data
   and a located test open (removed afterwards).
 - Owner checked both admin pages in a browser. Not yet verified: locations in production after
   the Cloudflare transform is enabled.
 
+### Deploy script fix verified (2026-11-18)
+
+- The readiness check had consumed the rest of the remote deploy script from
+  stdin, so `.release.env`, old-image cleanup and the final `ps` never ran
+  while deploys reported success. Fixed with `</dev/null`; after the next
+  deploy the owner confirmed `.release.env` is written and the previous app
+  image was removed automatically (D-061 verified).
+
+### Hot-reload dev server (2026-11-18)
+
+- `scripts/dev.sh` starts the Docker `dev` service at `http://localhost:5173`
+  (D-068, resolves F-001).
+- Verified: page served at its real link with scripts resolved from its
+  directory; page API and saves pass through the proxy (foreign `Origin`
+  still `403`); editing a page file triggers an HMR update via polling; clean
+  shutdown; production build and all tests unchanged (165 backend, 36
+  frontend).
+
+### Visitor timezones (2026-11-18)
+
+- Opens and saves send the browser's IANA timezone (`?tz=`); migration 0004
+  adds `page_opens.tz` and `page_state.responded_tz`. The admin shows each
+  time in the visitor's timezone with its abbreviation and groups opens by the
+  visitor's date; older rows show in UTC (D-069). `ADMIN_TIMEZONE` removed.
+- Verified: 170 backend and 36 frontend tests; migration applied to the
+  existing local database.
+
 ### Not yet verified
 
-- Old-image cleanup (D-061): found the cause after the third deploy. The
-  remote deploy script is sent over SSH on stdin, and the readiness check
-  (`docker compose exec -T`) read the rest of that stdin, so every command
-  after it silently never ran: writing `.release.env`, the image cleanup and
-  the final `ps`. The deploy still reported success. Fixed by giving the exec
-  `</dev/null` (reproduced and verified locally). Confirm on the next deploy:
-  the log shows "Keeping current image …" and `.release.env` exists.
 - `docker ps` shows the app image as a bare ID; this is display only. The
   container's configured image is the GHCR reference by digest and the image
   keeps its tag, so manual Compose commands do not pull again.

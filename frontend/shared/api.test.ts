@@ -66,14 +66,20 @@ describe("actions", () => {
       (error: unknown) => (error instanceof ActionError ? error.kind : "other"),
     );
 
+  const setTimezone = (timeZone: string | undefined) =>
+    vi
+      .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockReturnValue({ timeZone } as Intl.ResolvedDateTimeFormatOptions);
+
   it("saveFields sends a JSON PATCH and returns the saved state", async () => {
     window.history.replaceState(null, "", "/l/some-slug");
+    setTimezone("Europe/London");
     const fetchMock = vi.fn().mockResolvedValue(ok({ state: { choice: "b" }, saved: true }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(saveFields({ choice: "b", note: null })).resolves.toEqual({ choice: "b" });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("/api/v1/pages/some-slug/state");
+    expect(url).toBe("/api/v1/pages/some-slug/state?tz=Europe%2FLondon");
     expect(init.method).toBe("PATCH");
     expect(init.headers).toMatchObject({ "Content-Type": "application/json" });
     expect(JSON.parse(init.body as string)).toEqual({ fields: { choice: "b", note: null } });
@@ -85,6 +91,7 @@ describe("actions", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     vi.spyOn(performance, "getEntriesByType").mockReturnValue([]);
+    setTimezone(undefined);
 
     await recordOpen();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -99,9 +106,12 @@ describe("actions", () => {
     vi.spyOn(performance, "getEntriesByType").mockReturnValue([
       { type } as PerformanceNavigationTiming,
     ]);
+    setTimezone("Pacific/Auckland");
 
     await recordOpen();
-    expect(fetchMock.mock.calls[0][0]).toBe(`/api/v1/pages/some-slug/open?kind=${type}`);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `/api/v1/pages/some-slug/open?kind=${type}&tz=Pacific%2FAuckland`,
+    );
   });
 
   it("recordOpen omits kinds the server does not record", async () => {
@@ -111,6 +121,7 @@ describe("actions", () => {
     vi.spyOn(performance, "getEntriesByType").mockReturnValue([
       { type: "prerender" } as unknown as PerformanceNavigationTiming,
     ]);
+    setTimezone(undefined);
 
     await recordOpen();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/pages/some-slug/open");

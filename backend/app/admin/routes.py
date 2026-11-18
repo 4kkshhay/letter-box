@@ -34,7 +34,8 @@ throttle = LoginThrottle()
 
 
 def _time(value: datetime) -> str:
-    return value.strftime("%I:%M %p").lstrip("0").lower()
+    """Clock time with the visitor's timezone abbreviation, e.g. "9:40 pm GMT"."""
+    return f"{value.strftime('%I:%M %p').lstrip('0').lower()} {value.strftime('%Z')}"
 
 
 def _day(value: date) -> str:
@@ -128,7 +129,7 @@ def logout(request: Request) -> RedirectResponse:
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> Response:
     settings = request.app.state.settings
-    pages = page_summaries(settings.database_path, request.app.state.pages, request.app.state.tz)
+    pages = page_summaries(settings.database_path, request.app.state.pages)
     return templates.TemplateResponse(
         request, "dashboard.html", {"pages": pages}, headers=NO_STORE
     )
@@ -142,7 +143,6 @@ def page_stats(name: str, request: Request) -> Response:
             settings.database_path,
             _page(request, name),
             settings.public_base_url,
-            request.app.state.tz,
             production=settings.is_production,
         )
     except ValueError as error:

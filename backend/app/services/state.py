@@ -4,7 +4,9 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from functools import cache
 from typing import Any
+from zoneinfo import available_timezones
 
 from app.db.connection import connect
 from app.services.pages import EnumField, FieldDef, MultiField, Page, StringField
@@ -76,7 +78,19 @@ def validate_fields(page: Page, submitted: dict[str, Any]) -> dict[str, Any]:
     return submitted
 
 
-def save_fields(database_path: Path, page: Page, fields: dict[str, Any]) -> dict[str, Any]:
+@cache
+def _known_timezones() -> frozenset[str]:
+    return frozenset(available_timezones())
+
+
+def visitor_timezone(value: str | None) -> str | None:
+    """An IANA timezone name reported by the visitor's browser, if valid."""
+    return value if value and len(value) <= 64 and value in _known_timezones() else None
+
+
+def save_fields(
+    database_path: Path, page: Page, fields: dict[str, Any], tz: str | None = None
+) -> dict[str, Any]:
     """Merge validated fields into the saved answers and return the result.
 
     json_patch merges in one statement: given keys replace saved ones, null
@@ -85,13 +99,19 @@ def save_fields(database_path: Path, page: Page, fields: dict[str, Any]) -> dict
     with connect(database_path) as conn:
         conn.execute(
             """
-            INSERT INTO page_state (page, response_json, responded_at)
-            VALUES (:page, json_patch('{}', :patch), :now)
+            INSERT INTO page_state (page, response_json, responded_at, responded_tz)
+            VALUES (:page, json_patch('{}', :patch), :now, :tz)
             ON CONFLICT (page) DO UPDATE SET
                 response_json = json_patch(coalesce(response_json, '{}'), :patch),
-                responded_at = :now
+                responded_at = :now,
+                responded_tz = :tz
             """,
-            {"page": page.name, "patch": json.dumps(fields, ensure_ascii=False), "now": utc_now()},
+            {
+                "page": page.name,
+                "patch": json.dumps(fields, ensure_ascii=False),
+                "now": utc_now(),
+                "tz": tz,
+            },
         )
         row = conn.execute(
             "SELECT response_json FROM page_state WHERE page = ?", (page.name,)
@@ -115,10 +135,11 @@ def record_open(
     page: Page,
     kind: str | None = None,
     location: OpenLocation = OpenLocation(),
+    tz: str | None = None,
 ) -> None:
     with connect(database_path) as conn:
         conn.execute(
-            "INSERT INTO page_opens (page, opened_at, kind, city, region, country)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (page.name, utc_now(), kind, location.city, location.region, location.country),
+            "INSERT INTO page_opens (page, opened_at, kind, city, region, country, tz)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (page.name, utc_now(), kind, location.city, location.region, location.country, tz),
         )

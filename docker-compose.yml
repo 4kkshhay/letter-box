@@ -21,7 +21,6 @@ services:
       DATABASE_PATH: /data/letterbox.db
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
       SESSION_SECRET: ${SESSION_SECRET}
-      ADMIN_TIMEZONE: ${ADMIN_TIMEZONE:-Pacific/Auckland}
     volumes:
       - ${DATA_DIR:-./data}:/data
     mem_limit: 256m

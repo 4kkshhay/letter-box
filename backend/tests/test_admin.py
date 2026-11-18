@@ -43,8 +43,8 @@ def test_dashboard_lists_pages_only(admin_client: TestClient, with_pages: Settin
         assert title in response.text
     assert "Disabled" in response.text
     assert "Responded" in response.text
-    # Last open 00:40 UTC is 13:40 in Auckland (NZDT); details live on the page view.
-    assert "Last opened Tue 17 Nov 2026, 1:40 pm · 3 opens" in response.text
+    # Seeded opens have no visitor timezone, so they show in UTC, never admin-local.
+    assert "Last opened Tue 17 Nov 2026, 12:40 am UTC · 3 opens" in response.text
     assert "Not opened yet" in response.text
     assert SLUG_B not in response.text
     assert "Response" not in response.text.replace("Responded", "")
@@ -56,9 +56,17 @@ def test_page_view_shows_stats_responses_and_opens_by_day(
     seed_page(with_pages)
     with connect(with_pages.database_path) as conn:
         conn.execute(
-            "INSERT INTO page_opens (page, opened_at, kind, city, region, country)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            ("beta", "2026-11-17T12:30:00+00:00", "navigate", "Wellington", "Wellington", "NZ"),
+            "INSERT INTO page_opens (page, opened_at, kind, city, region, country, tz)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                "beta",
+                "2026-11-17T12:30:00+00:00",
+                "navigate",
+                "Wellington",
+                "Wellington",
+                "NZ",
+                "Pacific/Auckland",
+            ),
         )
     login(admin_client)
     response = admin_client.get("/pages/beta")
@@ -72,11 +80,14 @@ def test_page_view_shows_stats_responses_and_opens_by_day(
     assert 'href="/pages/beta/qr.png"' in text
     assert 'action="/pages/beta/reset"' in text
     # Received is the first open in local time; 4 opens, 2 of them new.
-    assert "Tue 17 Nov 2026, 1:00 pm" in text
+    assert "Tue 17 Nov 2026, 12:00 am UTC" in text
     assert "<dd>4</dd>" in text
     assert "<dd>2</dd>" in text
-    # Grouped by local date, newest first: 12:30 UTC is 01:30 next day in NZ.
-    assert text.index("Wed 18 Nov 2026") < text.index("Tue 17 Nov 2026</h3>")
+    # Each open is shown in the visitor's own timezone and grouped by their date:
+    # 12:30 UTC was 1:30 am on 18 Nov for an Auckland visitor.
+    assert "1:30 am NZDT" in text
+    assert "Wed 18 Nov 2026, 1:30 am NZDT" in text  # last opened
+    assert text.index("Wed 18 Nov 2026</h3>") < text.index("Tue 17 Nov 2026</h3>")
     assert "Wellington, NZ" in text
     assert 'class="tag good">New open<' in text
     assert 'class="tag">Refresh<' in text
@@ -90,19 +101,6 @@ def test_page_view_without_activity(admin_client: TestClient, with_pages: Settin
     text = admin_client.get("/pages/alpha").text
     assert "No response yet." in text
     assert "Not opened yet." in text
-
-
-def test_admin_timezone_must_be_known(with_pages: Settings) -> None:
-    from dataclasses import replace
-
-    import pytest
-
-    from app.main import create_admin_app
-
-    with pytest.raises(RuntimeError, match="ADMIN_TIMEZONE"):
-        create_admin_app(
-            replace(with_pages, admin_timezone="Not/AZone"), load_pages(with_pages.static_dir)
-        )
 
 
 def test_admin_preview_uses_name_is_read_only_and_records_nothing(

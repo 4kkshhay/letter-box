@@ -19,7 +19,6 @@ class Settings:
     admin_port: int
     admin_password_hash: str
     session_secret: str
-    admin_timezone: str = "Pacific/Auckland"
 
     @property
     def is_production(self) -> bool:
@@ -39,5 +38,4 @@ def get_settings() -> Settings:
         admin_port=int(env.get("ADMIN_LISTEN_PORT", "8001")),
         admin_password_hash=env.get("ADMIN_PASSWORD_HASH", ""),
         session_secret=env.get("SESSION_SECRET", ""),
-        admin_timezone=env.get("ADMIN_TIMEZONE", "Pacific/Auckland"),
     )

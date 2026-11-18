@@ -23,7 +23,7 @@ No database server, no Node runtime in production, no third-party services.
 backend/          FastAPI app (public + admin), migrations, tests
 frontend/pages/   One directory per page: config, code, assets
 frontend/shared/  Code shared by pages
-scripts/          Run / test / new-page / export-db helpers
+scripts/          Run / dev / test / new-page / export-db helpers
 docs/             Project documentation
 data/             SQLite file for local runs (gitignored)
 ```
@@ -47,6 +47,7 @@ Requires Docker with Compose v2.
 ```bash
 ./scripts/run.sh     # build, start, wait until healthy
 ./scripts/test.sh    # build checks and backend tests
+./scripts/dev.sh     # optional: hot-reload page dev server on port 5173
 ```
 
 The public app is then at `http://localhost:8610/` and the admin app at

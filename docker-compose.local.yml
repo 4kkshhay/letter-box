@@ -8,3 +8,35 @@ services:
     ports:
       - "${PUBLIC_BIND:-127.0.0.1}:${PUBLIC_PORT:-8610}:8000"
       - "127.0.0.1:${ADMIN_PORT:-8611}:8001"
+
+  # Hot-reload dev server for page work: ./scripts/dev.sh. Not started otherwise.
+  dev:
+    profiles: [dev]
+    image: node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
+    working_dir: /frontend
+    # Reinstall only when the lockfile changes; modules live in a Docker volume.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        lock=$$(sha256sum package-lock.json)
+        if [ "$$lock" != "$$(cat node_modules/.lock-sha 2>/dev/null)" ]; then
+          npm ci --no-audit --no-fund
+          echo "$$lock" > node_modules/.lock-sha
+        fi
+        exec node_modules/.bin/vite --host 0.0.0.0 --port 5173 --strictPort
+    environment:
+      API_TARGET: http://app:8000
+      VITE_POLL: "1"
+    volumes:
+      - ./frontend:/frontend
+      - frontend-node-modules:/frontend/node_modules
+    ports:
+      - "127.0.0.1:${DEV_PORT:-5173}:5173"
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  frontend-node-modules:
