@@ -21,13 +21,14 @@ def seed_page(settings: Settings) -> None:
             "INSERT INTO page_state (page, response_json, responded_at) VALUES (?, ?, ?)",
             ("beta", json.dumps({"choice": "b", "note": ""}), "2026-11-17T01:00:00+00:00"),
         )
-        for opened in (
-            "2026-11-17T00:00:00+00:00",
-            "2026-11-17T00:10:00+00:00",
-            "2026-11-17T00:40:00+00:00",
+        for opened, kind in (
+            ("2026-11-17T00:00:00+00:00", "navigate"),
+            ("2026-11-17T00:10:00+00:00", "reload"),
+            ("2026-11-17T00:40:00+00:00", None),
         ):
             conn.execute(
-                "INSERT INTO page_opens (page, opened_at) VALUES (?, ?)", ("beta", opened)
+                "INSERT INTO page_opens (page, opened_at, kind) VALUES (?, ?, ?)",
+                ("beta", opened, kind),
             )
 
 
@@ -43,9 +44,14 @@ def test_dashboard_lists_pages_tracking_and_responses(
     assert "Beta" in response.text
     assert "Hidden" in response.text
     assert "Disabled" in response.text
-    assert f"http://localhost:8610/l/{SLUG_B}" in response.text
+    assert f"<code>http://localhost:8610/l/{SLUG_B}</code>" in response.text
+    # Copy-only: following the public link would record a visit.
+    assert f'href="http://localhost:8610/l/{SLUG_B}"' not in response.text
     assert "2026-11-17T00:00:00+00:00" in response.text
-    assert "<dd>2</dd>" in response.text
+    assert "3 total · 1 new" in response.text
+    assert 'class="kind fresh">New open<' in response.text
+    assert 'class="kind">Refresh<' in response.text
+    assert 'class="kind">Unknown<' in response.text
     assert "No response" in response.text
     assert "&#34;&#34;" in response.text or '""' in response.text
 

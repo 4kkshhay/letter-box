@@ -100,10 +100,23 @@ export async function saveFields(fields: FieldUpdate): Promise<Record<string, Fi
   return body.state;
 }
 
+const OPEN_KINDS = new Set(["navigate", "reload", "back_forward"]);
+
+/** How the browser loaded this document, if it is one the server records. */
+export function navigationKind(): string | null {
+  const entry = performance.getEntriesByType?.("navigation")[0] as
+    | PerformanceNavigationTiming
+    | undefined;
+  return entry && OPEN_KINDS.has(entry.type) ? entry.type : null;
+}
+
 /**
- * Reports one open of this page; the first one is shown to the admin as
- * "received". `keepalive` lets it finish if the page is closed.
+ * Reports one open of this page with how it was loaded, so the admin can tell
+ * refreshes from new opens; the first one is shown as "received". `keepalive`
+ * lets it finish if the page is closed.
  */
 export async function recordOpen(): Promise<void> {
-  await send("/open", { method: "POST", keepalive: true });
+  const kind = navigationKind();
+  const query = kind ? `?kind=${kind}` : "";
+  await send(`/open${query}`, { method: "POST", keepalive: true });
 }

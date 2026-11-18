@@ -18,13 +18,22 @@ this document fixes the shape.
    GHCR image versions and deletes older versions.
 
 The GHCR package must remain private because the image contains page configs
-and their link slugs. The deploy job logs out of GHCR when it finishes and,
-after readiness passes, records the deployed digest in `.release.env` for
-manual Compose/export commands.
+and their link slugs. During the pull, the short-lived GitHub token is held in
+a run-specific Docker config under memory-backed `/dev/shm`, never in
+`letterbox`'s home directory. The deploy job logs out and deletes that config
+on both success and failure. After readiness passes, it records the deployed
+digest in `.release.env` for manual Compose/export commands.
 
 Image cleanup uses the same automatic `GITHUB_TOKEN`; it needs no additional
-secret. Keeping seven versions leaves the current release and six recent
-rollback candidates. A failed deployment does not prune the registry.
+secret. Images are built without provenance or SBOM attestations, so each
+release is a single GHCR version and keeping seven versions leaves the current
+release and six rollback candidates. A failed deployment does not prune the
+registry.
+
+After a successful deployment the server removes this project's older app
+images (only images from this project's GHCR repository; the running one is
+kept). Rollback pulls the selected release from GHCR again. Other projects'
+images are never touched.
 
 ## Compose project
 

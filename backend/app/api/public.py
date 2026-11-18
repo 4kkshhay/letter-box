@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.services.pages import Page
 from app.services.state import (
+    OPEN_KINDS,
     InvalidFields,
     read_state,
     record_open,
@@ -103,7 +104,14 @@ async def save_page_state(slug: str, request: Request) -> JSONResponse:
 
 @router.post("/api/v1/pages/{slug}/open", dependencies=[Depends(require_same_origin)])
 def record_page_open(slug: str, request: Request) -> Response:
-    """The first recorded open is what the dashboard shows as "received"."""
+    """The first recorded open is what the dashboard shows as "received".
+
+    `?kind=` is the browser's navigation type; without it the open is stored
+    with an unknown kind.
+    """
     page = _require_page(request, slug)
-    record_open(request.app.state.settings.database_path, page)
+    kind = request.query_params.get("kind")
+    if kind is not None and kind not in OPEN_KINDS:
+        raise HTTPException(status_code=422, detail="Invalid input")
+    record_open(request.app.state.settings.database_path, page, kind)
     return Response(status_code=204, headers=NO_STORE)

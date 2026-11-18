@@ -134,7 +134,7 @@ data/                 # SQLite file (gitignored)
 - Validate field names, types, options, lengths and body size server-side.
   Render submitted text as text only.
 - Response headers: `X-Robots-Tag: noindex, nofollow`,
-  `Referrer-Policy: no-referrer`, `Cache-Control: no-store` on HTML and API,
+  `Referrer-Policy: no-referrer` (admin: `same-origin`), `Cache-Control: no-store` on HTML and API,
   a restrictive CSP and `frame-ancestors 'none'`. Hashed assets may be cached.
 - No third-party scripts, fonts or trackers.
 - Admin: single scrypt-hashed password, signed 12-hour session cookie

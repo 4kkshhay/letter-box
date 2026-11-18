@@ -52,6 +52,10 @@ jobs:
           context: .
           target: app
           platforms: linux/arm64
+          # One plain manifest per release, so GHCR retention counts releases
+          # rather than attestation and index entries.
+          provenance: false
+          sbom: false
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
@@ -108,17 +112,32 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_REF: ${{ env.IMAGE_NAME }}:sha-${{ inputs.release_sha || github.sha }}
+          REMOTE_DOCKER_CONFIG: /dev/shm/letterbox-ghcr-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           target="$DEPLOY_USER@$DEPLOY_HOST"
-          printf '%s' "$GHCR_TOKEN" | ssh -o BatchMode=yes "$target" \
-            "docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin"
-          ssh -o BatchMode=yes "$target" bash -s -- "$DEPLOY_PATH" "$IMAGE_REF" <<'REMOTE'
+          ssh -o BatchMode=yes "$target" \
+            "install -m 700 -d '$REMOTE_DOCKER_CONFIG'"
+          if ! printf '%s' "$GHCR_TOKEN" | ssh -o BatchMode=yes "$target" \
+            "DOCKER_CONFIG='$REMOTE_DOCKER_CONFIG' docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin >/dev/null 2>&1"
+          then
+            echo "GHCR login failed" >&2
+            exit 1
+          fi
+          echo "Authenticated to GHCR using an ephemeral in-memory Docker config."
+          ssh -o BatchMode=yes "$target" bash -s -- \
+            "$DEPLOY_PATH" "$IMAGE_REF" "$REMOTE_DOCKER_CONFIG" <<'REMOTE'
           set -euo pipefail
           cd "$1"
           requested_image="$2"
+          export DOCKER_CONFIG="$3"
           export APP_IMAGE="$requested_image"
           compose=(docker compose -f docker-compose.yml -f docker-compose.production.yml)
-          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          cleanup_registry() {
+            docker logout ghcr.io >/dev/null 2>&1 || true
+            rm -f -- "$DOCKER_CONFIG/config.json"
+            rmdir -- "$DOCKER_CONFIG" 2>/dev/null || true
+          }
+          trap cleanup_registry EXIT
           test -f .env
           test -d data
           chmod +x scripts/export-db
@@ -133,6 +152,12 @@ jobs:
             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3); urllib.request.urlopen('http://127.0.0.1:8001/health/ready', timeout=3)"
           printf 'APP_IMAGE=%s\n' "$APP_IMAGE" > .release.env.tmp
           mv .release.env.tmp .release.env
+          # Remove this project's older app images only; rollback pulls from GHCR.
+          current_id=$(docker image inspect --format '{{.Id}}' "$APP_IMAGE")
+          docker image ls --no-trunc --format '{{.ID}}' "${requested_image%:*}" | sort -u |
+            while read -r image_id; do
+              [ "$image_id" = "$current_id" ] || docker image rm -f "$image_id" >/dev/null 2>&1 || true
+            done
           "${compose[@]}" ps
           REMOTE
       - name: Retain seven most recent images
@@ -147,6 +172,9 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REMOTE_DOCKER_CONFIG: /dev/shm/letterbox-ghcr-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           target="$DEPLOY_USER@$DEPLOY_HOST"
-          ssh -o BatchMode=yes "$target" "docker logout ghcr.io >/dev/null 2>&1 || true" || true
+          ssh -o BatchMode=yes "$target" \
+            "DOCKER_CONFIG='$REMOTE_DOCKER_CONFIG' docker logout ghcr.io >/dev/null 2>&1 || true; rm -f -- '$REMOTE_DOCKER_CONFIG/config.json'; rmdir -- '$REMOTE_DOCKER_CONFIG' 2>/dev/null || true" \
+            || true

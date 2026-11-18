@@ -3,7 +3,7 @@
 A small self-hosted site that serves mobile-first interactive pages from
 permanent QR-code links. Each page is an independent directory of
 code and assets, and may save and restore deliberately submitted input. A
-password-protected admin dashboard lists pages, shows responses and visits,
+password-protected admin dashboard lists pages, shows responses and opens,
 and generates QR codes.
 
 **Status:** Phase 5 (deployment and regression) in progress. See the

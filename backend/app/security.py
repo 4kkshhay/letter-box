@@ -28,15 +28,20 @@ CONTENT_SECURITY_POLICY = "; ".join(
 SECURITY_HEADERS = {
     "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
-    "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "X-Robots-Tag": "noindex, nofollow",
 }
 
 
-def install_security_middleware(app: FastAPI, settings: Settings) -> None:
-    """Install last so every route, redirect and error receives the headers."""
+def install_security_middleware(
+    app: FastAPI, settings: Settings, *, referrer_policy: str = "no-referrer"
+) -> None:
+    """Install last so every route, redirect and error receives the headers.
+
+    Under `no-referrer`, browsers send `Origin: null` on HTML form posts, which
+    the same-origin check rejects. The admin app's forms need `same-origin`.
+    """
 
     @app.middleware("http")
     async def harden(
@@ -69,6 +74,7 @@ def install_security_middleware(app: FastAPI, settings: Settings) -> None:
 
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
+        response.headers["Referrer-Policy"] = referrer_policy
         if settings.is_production:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"

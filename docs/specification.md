@@ -73,11 +73,13 @@ Behaviour:
 ## Tracking
 
 - **Opens** — the page's script reports one open per page load and the server
-  stores its timestamp. Requests that do not run the script (link previews,
-  crawlers) are not recorded.
-- **Visits** — derived for display: opens less than 30 minutes apart are
-  merged into one visit, so a refresh is not shown as a return. Raw open
-  times are kept, so the rule can change without losing data.
+  stores its timestamp and the browser's navigation type (`navigate`,
+  `reload`, `back_forward`; NULL if unavailable or recorded before the type
+  existed). Requests that do not run the script (link previews, crawlers) are
+  not recorded. Every open is counted; the dashboard labels each one as
+  "New open", "Refresh", "Back/forward" or "Unknown" and counts new ones
+  (`navigate`, `back_forward`) separately. No device or browser identity is
+  stored, so opens from different devices are not told apart.
 - **Received** — derived for display: the time of the first recorded open.
   It happens automatically; the visitor does nothing. It shows that the page
   was opened in a browser, not who opened it, so the page should be reset
@@ -108,6 +110,7 @@ One row per reported page load.
 | `id` | INTEGER PK | |
 | `page` | TEXT | Page directory name (indexed) |
 | `opened_at` | DATETIME | |
+| `kind` | TEXT NULL | Browser navigation type: `navigate`, `reload` or `back_forward` (added by migration 0002) |
 
 ## Public app
 
@@ -120,7 +123,7 @@ JSON API under `/api/v1`, `Cache-Control: no-store`.
 | GET | any other path | Redirects to `/` |
 | GET | `/api/v1/pages/{slug}` | Title, fields, saved state |
 | PATCH | `/api/v1/pages/{slug}/state` | Validate and merge submitted fields |
-| POST | `/api/v1/pages/{slug}/open` | Record one open |
+| POST | `/api/v1/pages/{slug}/open?kind=` | Record one open with its optional navigation type |
 | GET | `/assets/*` | Build files named by content hash only; no listing |
 | GET | `/health`, `/health/ready` | Liveness; database readiness |
 
@@ -153,7 +156,8 @@ Validation failure (`422`) names the fields but never echoes values:
 { "detail": "Invalid input", "errors": { "choice": "must be one of the options" } }
 ```
 
-`POST …/open` returns `204` and needs no request body.
+`POST …/open` returns `204` and needs no request body. `kind` is optional;
+any value other than `navigate`, `reload` or `back_forward` gets `422`.
 
 Mutation rules (`PATCH` and `POST`):
 
@@ -168,7 +172,8 @@ API calls for an unknown or disabled slug return the same generic `404` as
 any unmatched API path. Page links and `/` also answer `HEAD`.
 
 Every response sends `X-Robots-Tag: noindex, nofollow`,
-`Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, a restrictive
+`Referrer-Policy: no-referrer` (admin app: `same-origin`, so its form posts
+keep their `Origin`), `X-Content-Type-Options: nosniff`, a restrictive
 content security policy and framing/permissions restrictions. Production also
 sends HSTS. HTML, API, health, redirects and errors use `Cache-Control:
 no-store`; only content-hashed files below `/assets/` are cached for one year
@@ -212,7 +217,7 @@ failed attempts within five minutes temporarily throttle all logins.
 | --- | --- | --- |
 | GET, POST | `/login` | Password login; sets session cookie |
 | POST | `/logout` | End session |
-| GET | `/` | Dashboard: every page with link, received (first open), visit count, open times, saved values |
+| GET | `/` | Dashboard: every page with link, received (first open), open count with new opens counted separately, labelled open times, saved values |
 | GET | `/view/{page}` | The page in admin mode |
 | GET | `/api/v1/pages/{page}` | Same payload as the public API plus `"admin": true` |
 | POST | `/pages/{page}/reset` | Delete the page's saved values and opens (after confirmation) |
