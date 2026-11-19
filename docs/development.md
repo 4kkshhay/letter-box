@@ -64,6 +64,11 @@ Copy the printed `ADMIN_PASSWORD_HASH='…'` line into `.env`, and replace
 `SESSION_SECRET` with a long random value. The plain password is never stored.
 The admin dashboard is at `http://localhost:8611/`.
 
+### Demo pages
+
+Demo pages (`"demo": true` in `page.json`) are on locally and off in
+production; set `DEMO_PAGES=on` or `off` in `.env` to override.
+
 ### Page password gate
 
 Off while `PAGE_PASSWORD_HASHES` is empty (the default). To try it, set it

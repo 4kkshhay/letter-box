@@ -60,7 +60,8 @@ fields, save values, reload, verify them in the dashboard, then reset the page.
 Check phone portrait/landscape, keyboard controls, reduced motion and graceful
 fallbacks for any optional media or graphics.
 
-Before merging, confirm existing demo links and their saved values still work.
+Before merging, confirm existing page links (locally, the demo pages too) and
+their saved values still work.
 Shared client changes must stay backward compatible with already published
 pages.
 

@@ -74,6 +74,13 @@ server deploy (deferred item F-006).
 - Verified: 199 backend and 39 frontend tests; dev server serves
   `/not-just-a-coincidence`.
 
+### Demo pages off in production (2026-11-19)
+
+- Demo pages are marked `"demo": true`; with `DEMO_PAGES` empty they are
+  left out in production (no link, no admin listing or preview) and kept
+  locally (D-081, resolves F-007).
+- Verified: 206 backend and 39 frontend tests.
+
 ### Not yet verified
 
 - Image build on arm64 (F-006).

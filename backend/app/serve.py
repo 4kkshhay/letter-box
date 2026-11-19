@@ -35,8 +35,9 @@ async def serve(settings: Settings, pages: PageRegistry) -> None:
 def main() -> None:
     settings = get_settings()
     # Invalid page configs abort the start before anything is served.
-    pages = load_pages(settings.static_dir)
-    print(f"Loaded {len(pages.pages)} page(s)", flush=True)
+    pages = load_pages(settings.static_dir, include_demo=settings.demo_pages)
+    demo = "" if settings.demo_pages else " (demo pages off)"
+    print(f"Loaded {len(pages.pages)} page(s){demo}", flush=True)
     gate = settings.page_password_hashes
     print(f"Page gate: {f'on ({len(gate)} password(s))' if gate else 'off'}", flush=True)
     run_migrations(settings.database_path, settings.migrations_dir)

@@ -145,6 +145,12 @@ the assignment with `scripts/hash-admin-password.sh`. Sessions are signed with
 values in `.env` only. Production cookies are always marked `Secure` from
 `APP_ENV`, without trusting forwarded scheme headers.
 
+## Demo pages
+
+Pages marked `"demo": true` are left out in production unless `.env` sets
+`DEMO_PAGES=on`. The start log says `Loaded N page(s) (demo pages off)`.
+Their saved data stays in the database untouched.
+
 ## Page password gate
 
 `PAGE_PASSWORD_HASHES` holds one or more comma-separated scrypt hashes from

@@ -8,7 +8,6 @@ scope by design are listed in the [roadmap](roadmap.md).
 | ID | Raised | Item | Why deferred | Revisit |
 | --- | --- | --- | --- | --- |
 | F-002 | Phase 1 | Linters and formatters (ruff, ESLint, Prettier) | Little code so far; keeps tooling minimal | When the codebase grows or style drifts |
-| F-007 | Phase 2 | Whether demo pages stay in production (keep, disable or remove) | Kept for now as diagnostics; not a final decision (D-063) | Later |
 | F-009 | Phase 2 | Rate limit on page links (`/<slug>`) and `/api/v1/pages/*` to slow link guessing | Optional hardening; readable links make guessing possible; best done as a Cloudflare rate-limiting rule on `letterbox.ink` | Later, before real pages are widely shared |
 | F-012 | Phase 5 | Cloudflare Access (Zero Trust, free tier) in front of `admin.letterbox.ink`, e.g. one-time email code for the owner's address | Optional hardening; stops password brute-forcing and the shared five-attempt login lockout being triggered by others; the app's own login stays as the second layer | Later |
 
@@ -16,6 +15,7 @@ scope by design are listed in the [roadmap](roadmap.md).
 
 | ID | Raised | Item | Resolution |
 | --- | --- | --- | --- |
+| F-007 | Phase 2 | Whether demo pages stay in production | Marked `"demo": true` and left out in production by default; kept for local development (D-081) |
 | F-001 | Phase 1 | Vite dev server with an API proxy for hot-reload page development | Added as the Docker `dev` service and `scripts/dev.sh` (D-068) |
 | F-003 | Phase 1 | CI running `scripts/test.sh` | Added in Phase 1 as a pull-request workflow (D-024) |
 | F-008 | Phase 2 | Browser end-to-end tests (Playwright) for the acceptance flows | Not added in Phase 4: pytest, Vitest and a disposable-container HTTP smoke test cover the flow without the extra browser dependency (D-050) |

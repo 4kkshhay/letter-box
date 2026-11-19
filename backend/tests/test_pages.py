@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from app.config import _demo_pages
 from app.services.pages import PageConfigError, load_pages
 from tests.conftest import SLUG_A, SLUG_B, write_page
 
@@ -98,3 +99,33 @@ def test_invalid_page_name_is_rejected(tmp_path: Path, name: str) -> None:
     write_page(tmp_path, name, {"slug": SLUG_B, "title": "T"})
     with pytest.raises(PageConfigError, match="name"):
         load_pages(tmp_path)
+
+
+def test_demo_pages_can_be_left_out_entirely(tmp_path: Path) -> None:
+    write_page(tmp_path, "real", {"slug": "real-page-words", "title": "Real"})
+    write_page(tmp_path, "demo", {"slug": "demo-page-words", "title": "Demo", "demo": True})
+    assert [page.name for page in load_pages(tmp_path).pages] == ["demo", "real"]
+    hidden = load_pages(tmp_path, include_demo=False)
+    assert [page.name for page in hidden.pages] == ["real"]
+    assert hidden.by_slug("demo-page-words") is None
+    assert hidden.by_name("demo") is None
+
+
+def test_hidden_demo_pages_still_count_for_slug_uniqueness(tmp_path: Path) -> None:
+    write_page(tmp_path, "real", {"slug": "shared-page-words", "title": "Real"})
+    write_page(tmp_path, "demo", {"slug": "shared-page-words", "title": "Demo", "demo": True})
+    with pytest.raises(PageConfigError, match="same slug"):
+        load_pages(tmp_path, include_demo=False)
+
+
+@pytest.mark.parametrize(
+    ("value", "app_env", "expected"),
+    [("", "development", True), ("", "production", False), ("on", "production", True), (" OFF ", "development", False)],
+)
+def test_demo_pages_setting(value: str, app_env: str, expected: bool) -> None:
+    assert _demo_pages(value, app_env) is expected
+
+
+def test_demo_pages_setting_rejects_other_values() -> None:
+    with pytest.raises(ValueError):
+        _demo_pages("yes", "production")

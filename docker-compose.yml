@@ -22,6 +22,7 @@ services:
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
       SESSION_SECRET: ${SESSION_SECRET}
       PAGE_PASSWORD_HASHES: ${PAGE_PASSWORD_HASHES:-}
+      DEMO_PAGES: ${DEMO_PAGES:-}
     volumes:
       - ${DATA_DIR:-./data}:/data
     mem_limit: 256m

@@ -31,7 +31,7 @@ Rules, checked when the server starts (it refuses to start otherwise):
 - `slug` is lowercase words (letters and digits) separated by single
   hyphens, 10 to 100 characters, and unique across pages. More and less
   common words make a link harder to guess.
-- `title` is required. `enabled` defaults to `true`.
+- `title` is required. `enabled` defaults to `true`; `demo` to `false`.
 - Field names are lowercase letters, digits and underscores, starting with a
   letter. `enum` and `multi` need a non-empty list of unique `options`;
   `string` takes `max_length` (default 500, at most 5000).
@@ -44,6 +44,10 @@ Behaviour:
   Anything not declared is page-local and never sent to the server.
 - `enabled: false` makes the link behave like an unknown one after the next
   deploy.
+- `demo: true` marks a demo or diagnostic page. Where demo pages are off
+  (`DEMO_PAGES=off`, the default in production), the page is left out
+  entirely: its link behaves like an unknown one and the admin neither lists
+  nor previews it. Its slug still counts for uniqueness.
 
 ## State rules
 

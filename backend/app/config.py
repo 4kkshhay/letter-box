@@ -23,6 +23,8 @@ class Settings:
     session_secret: str
     # Page gate: empty means off, and every page link opens directly.
     page_password_hashes: tuple[str, ...] = ()
+    # Pages marked "demo" in page.json; off by default in production.
+    demo_pages: bool = True
 
     @property
     def is_production(self) -> bool:
@@ -43,4 +45,15 @@ def get_settings() -> Settings:
         admin_password_hash=env.get("ADMIN_PASSWORD_HASH", ""),
         session_secret=env.get("SESSION_SECRET", ""),
         page_password_hashes=parse_password_hashes(env.get("PAGE_PASSWORD_HASHES", "")),
+        demo_pages=_demo_pages(env.get("DEMO_PAGES", ""), env.get("APP_ENV", "development")),
     )
+
+
+def _demo_pages(value: str, app_env: str) -> bool:
+    """DEMO_PAGES=on|off; empty means on, except in production."""
+    value = value.strip().lower()
+    if value in {"on", "off"}:
+        return value == "on"
+    if value:
+        raise ValueError("DEMO_PAGES must be on, off or empty")
+    return app_env != "production"
