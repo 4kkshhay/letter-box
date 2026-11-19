@@ -56,6 +56,16 @@ server deploy (deferred item F-006).
   server ports, correct password opens the page. Placeholder reads "secret
   word".
 
+### Phase 6 — Experience 1 (2026-11-19)
+
+- Scaffolded `experience-1-not-just-a-coincidence` at
+  `/l/not-just-a-coincidence`. Theme, scene navigation, greeting, chapter
+  and closing layouts are built; story text and the photo are placeholders
+  (see `docs/pages/experience-1.md`).
+- Verified: 39 frontend tests (3 for the page's navigation) and 193 backend
+  tests. Rendered at phone size: greeting, crossfade and a photo chapter,
+  with no horizontal scroll.
+
 ### Not yet verified
 
 - Image build on arm64 (F-006).
