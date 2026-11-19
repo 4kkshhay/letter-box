@@ -11,8 +11,12 @@ after a QR code is distributed can break the link or detach saved data.
 ```
 
 This creates `frontend/pages/example-page/` from `_template` and sets its
-public path to `/l/several-chosen-words`. Names and slugs use lowercase words
+public path to `/several-chosen-words`. Names and slugs use lowercase words
 separated by hyphens; slugs are 10–100 characters and unique.
+
+Real pages are named `experience-<number>-<words>`, numbered in order (for
+example `experience-1-not-just-a-coincidence`), and each gets a design note in
+`docs/pages/experience-<number>.md`. Demo pages keep their `demo-` names.
 
 Edit `Page.tsx`, `Page.module.css`, `index.html` and `page.json`. Keep all
 page-specific media inside the page directory and import it from the page code,
@@ -56,7 +60,8 @@ fields, save values, reload, verify them in the dashboard, then reset the page.
 Check phone portrait/landscape, keyboard controls, reduced motion and graceful
 fallbacks for any optional media or graphics.
 
-Before merging, confirm existing demo links and their saved values still work.
+Before merging, confirm existing page links (locally, the demo pages too) and
+their saved values still work.
 Shared client changes must stay backward compatible with already published
 pages.
 

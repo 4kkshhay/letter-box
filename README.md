@@ -4,9 +4,11 @@ A small self-hosted site that serves mobile-first interactive pages from
 permanent QR-code links. Each page is an independent directory of
 code and assets, and may save and restore deliberately submitted input. A
 password-protected admin dashboard lists pages, shows responses and opens,
-and generates QR codes.
+and generates QR codes. An optional shared password gate guards every page
+link.
 
-**Status:** Phases 1–5 complete; real pages (Phase 6) next. See the
+**Status:** Phases 1–5.5 complete; real pages (Phase 6) in progress, each
+described in [docs/pages](docs/pages/). See the
 [roadmap](docs/roadmap.md) and [progress log](docs/progress.md).
 
 ## Stack

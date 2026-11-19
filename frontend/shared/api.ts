@@ -33,7 +33,7 @@ export class ActionError extends Error {
   }
 }
 
-/** `/l/<slug>` → `/api/v1/pages/<slug>` */
+/** `/<slug>` → `/api/v1/pages/<slug>` */
 export function pageApiUrl(pathname: string = window.location.pathname): string {
   const key = pathname.split("/").filter(Boolean).at(-1) ?? "";
   return `/api/v1/pages/${encodeURIComponent(key)}`;

@@ -1,5 +1,6 @@
 {
   "slug": "regression-demo-page",
   "title": "Regression demo",
-  "enabled": true
+  "enabled": true,
+  "demo": true
 }

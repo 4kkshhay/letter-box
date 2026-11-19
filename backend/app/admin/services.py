@@ -116,7 +116,7 @@ def public_page_url(public_base_url: str, page: Page, *, production: bool) -> st
         is_loopback = hostname in local_names
     if production and (parsed.scheme != "https" or is_loopback):
         raise ValueError("Production PUBLIC_BASE_URL must be a non-local HTTPS URL")
-    return f"{base}/l/{page.config.slug}"
+    return f"{base}/{page.config.slug}"
 
 
 def page_summaries(database_path: Path, pages: PageRegistry) -> list[PageSummary]:

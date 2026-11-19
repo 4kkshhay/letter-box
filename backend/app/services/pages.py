@@ -63,6 +63,8 @@ class PageConfig(_Strict):
     slug: Slug
     title: str = Field(min_length=1, max_length=200)
     enabled: bool = True
+    # Demo and diagnostic pages; left out entirely where demo pages are off.
+    demo: bool = False
     fields: dict[FieldName, FieldDef] = Field(default_factory=dict, max_length=50)
 
 
@@ -109,7 +111,9 @@ def _load_page(page_dir: Path) -> Page:
     return Page(name=name, config=config, html_path=html_path)
 
 
-def load_pages(static_dir: Path) -> PageRegistry:
+def load_pages(static_dir: Path, *, include_demo: bool = True) -> PageRegistry:
+    """Every page, validated together. Without `include_demo`, demo pages are
+    left out entirely: no link, no admin listing, no preview."""
     pages_dir = static_dir / "pages"
     if not pages_dir.is_dir():
         return PageRegistry([])
@@ -119,4 +123,4 @@ def load_pages(static_dir: Path) -> PageRegistry:
         other = names_by_slug.setdefault(page.config.slug, page.name)
         if other != page.name:
             raise PageConfigError(f"Pages '{other}' and '{page.name}' have the same slug")
-    return PageRegistry(pages)
+    return PageRegistry([page for page in pages if include_demo or not page.config.demo])

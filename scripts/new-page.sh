@@ -27,4 +27,4 @@ cp -r frontend/pages/_template "$target"
 sed -i "s/__NAME__/$name/g; s/__SLUG__/$slug/g" "$target/page.json" "$target/index.html"
 
 echo "Created $target"
-echo "Path of its link: /l/$slug"
+echo "Path of its link: /$slug"

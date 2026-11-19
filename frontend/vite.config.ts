@@ -79,14 +79,14 @@ async function lockedGate(req: IncomingMessage): Promise<string | undefined> {
   }
 }
 
-/** Dev server only: serve each page at its real link, /l/<slug>, as the site does. */
+/** Dev server only: serve each page at its real link, /<slug>, as the site does. */
 function pageLinks(): Plugin {
   return {
     name: "letterbox-page-links",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const match = /^\/l\/([a-z0-9-]+)\/?(\?.*)?$/.exec(req.url ?? "");
+        const match = /^\/([a-z0-9-]+)(\?.*)?$/.exec(req.url ?? "");
         const name = match ? pageForSlug(match[1]) : undefined;
         // Unlock posts go to the app (see the proxy below).
         if (!name || req.method !== "GET") {
@@ -101,7 +101,7 @@ function pageLinks(): Plugin {
             res.end(gate);
             return;
           }
-          // The URL stays /l/<slug> (the page reads it), so point relative
+          // The URL stays /<slug> (the page reads it), so point relative
           // script and asset paths at the page directory.
           const source = readFileSync(resolve(pagesDir, name, "index.html"), "utf8");
           const html = await server.transformIndexHtml(
@@ -136,7 +136,9 @@ export default defineConfig({
     // Page API calls, gate unlocks and gate fonts go to the running app, so
     // pages load and save local data. The Host header is kept, so the app's
     // same-origin check still passes.
-    proxy: { "/api": toApp, "/gate": toApp, "^/l/": toApp },
+    // Single-segment paths are page links: unknown ones and unlock posts go to
+    // the app, as do old /l/ links (it redirects them).
+    proxy: { "/api": toApp, "/gate": toApp, "^/l/": toApp, "^/[a-z0-9-]+(\\?.*)?$": toApp },
     // Containers get no file-change events from a Windows-drive bind mount.
     watch: process.env.VITE_POLL ? { usePolling: true, interval: 300 } : undefined,
   },

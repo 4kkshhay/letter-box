@@ -112,7 +112,7 @@ configuration. Hostnames configured on the tunnel:
   paths, which contain the secret slug. Edge-side logs are outside the app's
   control.
 - Optional: an access policy in front of `admin.letterbox.ink` as a second layer.
-- Recommended: an edge rate limit on `/l/*` and `/api/v1/pages/*` to slow link
+- Recommended: an edge rate limit on page links (`/*`) and `/api/v1/pages/*` to slow link
   guessing (F-009).
 
 Create one remotely managed tunnel in Cloudflare, put its token in the server
@@ -144,6 +144,12 @@ the assignment with `scripts/hash-admin-password.sh`. Sessions are signed with
 `SESSION_SECRET`, which must be at least 32 characters in production. Keep both
 values in `.env` only. Production cookies are always marked `Secure` from
 `APP_ENV`, without trusting forwarded scheme headers.
+
+## Demo pages
+
+Pages marked `"demo": true` are left out in production unless `.env` sets
+`DEMO_PAGES=on`. The start log says `Loaded N page(s) (demo pages off)`.
+Their saved data stays in the database untouched.
 
 ## Page password gate
 
@@ -188,7 +194,7 @@ scp <server>:<project-dir>/data/exports/letterbox-<timestamp>.db .
 
 ## Disabling a link
 
-Immediately: block both `/l/<slug>` and `/api/v1/pages/<slug>` with an edge
+Immediately: block `/<slug>`, `/l/<slug>` and `/api/v1/pages/<slug>` with an edge
 rule. Permanently: set `"enabled": false` in the page's `page.json` and
 deploy.
 

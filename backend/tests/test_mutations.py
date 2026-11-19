@@ -316,8 +316,8 @@ def test_open_changes_nothing_else(public_client: TestClient, with_pages: Settin
 
 
 def test_loading_a_page_records_no_open(public_client: TestClient, with_pages: Settings) -> None:
-    public_client.get(f"/l/{SLUG_A}")
-    public_client.head(f"/l/{SLUG_A}")
+    public_client.get(f"/{SLUG_A}")
+    public_client.head(f"/{SLUG_A}")
     public_client.get(f"/api/v1/pages/{SLUG_A}")
     assert open_times(with_pages, "alpha") == []
 

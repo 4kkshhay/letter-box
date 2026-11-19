@@ -67,10 +67,17 @@ flowchart TD
     S --> D[(SQLite file on host mount)]
 ```
 
-- `GET /l/<slug>` returns that page's HTML. Any unknown or disabled link
+- `GET /<slug>` returns that page's HTML (old `/l/<slug>` links redirect
+  there). Slugs are at least 10 characters, so they never collide with the
+  fixed routes (`/api`, `/assets`, `/gate`, `/health`). Any unknown or disabled link
   redirects to the site root, which shows only a neutral "Nothing here"
   message. The page then calls the public API to load saved state and report
   that it was opened.
+- While the password gate is on (`PAGE_PASSWORD_HASHES` set), a link first
+  shows a server-rendered password screen; the page HTML, its API and
+  `/assets/` need the signed unlock cookie a correct password sets.
+- Pages marked `demo` are left out entirely where demo pages are off (the
+  production default).
 - The admin app serves the same page HTML at `/view/<page>` in read-only
   admin mode, which never counts as an open.
 
@@ -119,11 +126,13 @@ data/                 # SQLite file (gitignored)
 
 ## Security and privacy rules
 
-- The slug is the only access control for a page. It is chosen by the admin
-  as readable hyphenated words, so its strength depends on how many and how
-  unusual the words are; anyone who knows or guesses it can open the page.
-  This trade-off is accepted (see the decision log). Unexpected opens are
-  visible in the open log, and a link can be blocked at the edge at any time.
+- A page's access control is its slug plus, when configured, the shared page
+  password gate. The slug is readable hyphenated words, so its strength
+  depends on how many and how unusual the words are. Without the gate, anyone
+  who knows or guesses it can open the page (accepted trade-off, see the
+  decision log); with it, they also need a password, and wrong guesses are
+  limited per visitor. Unexpected opens are visible in the open log, and a
+  link can be blocked at the edge at any time.
 - Unknown and disabled slugs behave identically: a redirect to the site root,
   which shows a neutral "Nothing here" message and nothing else.
 - GET requests never change state. Opens are recorded through an explicit
@@ -138,14 +147,18 @@ data/                 # SQLite file (gitignored)
   Render submitted text as text only.
 - Response headers: `X-Robots-Tag: noindex, nofollow`,
   `Referrer-Policy: no-referrer` (admin: `same-origin`), `Cache-Control: no-store` on HTML and API,
-  a restrictive CSP and `frame-ancestors 'none'`. Hashed assets may be cached.
-- No third-party scripts, fonts or trackers.
+  a restrictive CSP and `frame-ancestors 'none'`. Hashed assets may be cached
+  privately (never by a shared cache, since they need an unlock).
+- No third-party scripts, fonts or trackers; fonts are self-hosted.
 - Admin: single scrypt-hashed password, signed 12-hour session cookie
   (`HttpOnly`, `Secure` in production, `SameSite=Strict`), globally throttled
   login attempts and same-origin form mutations.
 - Logs must not contain slug-bearing paths or response bodies.
 - Forwarded headers are not trusted or needed: production-only behaviour comes
   from `APP_ENV`, origin checks compare hosts, and login throttling is global.
+  Cloudflare's own edge headers are used only as hints: visitor location for
+  the open log, and `CF-Connecting-IP` to count wrong gate passwords per
+  visitor.
 - API docs (`/docs`, `/openapi.json`) are disabled on both apps.
 - `.env`, the database and generated QR codes are never committed. Tests and
   demo pages use synthetic content only.

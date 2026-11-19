@@ -64,12 +64,17 @@ Copy the printed `ADMIN_PASSWORD_HASH='…'` line into `.env`, and replace
 `SESSION_SECRET` with a long random value. The plain password is never stored.
 The admin dashboard is at `http://localhost:8611/`.
 
+### Demo pages
+
+Demo pages (`"demo": true` in `page.json`) are on locally and off in
+production; set `DEMO_PAGES=on` or `off` in `.env` to override.
+
 ### Page password gate
 
 Off while `PAGE_PASSWORD_HASHES` is empty (the default). To try it, set it
 from `./scripts/hash-page-password.sh` and restart with `./scripts/run.sh`.
 The dev server shows the app's gate too and proxies the unlock, so unlock
-once at `/l/<words>` on either port. The greeting name and hint are in
+once at `/<words>` on either port. The greeting name and hint are in
 `frontend/shared/recipient.json`; rebuild after changing them.
 
 ## Adding a page
@@ -80,9 +85,9 @@ once at `/l/<words>` on either port. The greeting name and hint are in
 ```
 
 This copies `frontend/pages/_template` to `frontend/pages/my-page` and sets
-its link to `/l/some-chosen-words` in `page.json`. Edit `Page.tsx`, its
+its link to `/some-chosen-words` in `page.json`. Edit `Page.tsx`, its
 stylesheet and `page.json`, then open
-`http://localhost:8610/l/some-chosen-words`.
+`http://localhost:8610/some-chosen-words`.
 
 - Never change a page's directory name or slug once its link is in use.
 - The server refuses to start if any `page.json` is invalid; the reason is in
@@ -94,7 +99,7 @@ stylesheet and `page.json`, then open
 
 ```bash
 ./scripts/run.sh   # once, so the app knows the page (after new-page.sh or a page.json change)
-./scripts/dev.sh   # then open http://localhost:5173/l/<link-words>
+./scripts/dev.sh   # then open http://localhost:5173/<link-words>
 ```
 
 Edits to a page's code, styles and assets show in the browser within a second
@@ -106,8 +111,8 @@ or two, without rebuilding the image. Everything runs in Docker:
   volume and is reinstalled only when `package-lock.json` changes.
 - File changes are detected by polling, because a container gets no change
   events from a Windows-drive bind mount.
-- A dev-only Vite plugin serves each page at its real `/l/<slug>` URL; unknown
-  links fall back to the root page.
+- A dev-only Vite plugin serves each page at its real `/<slug>` URL; unknown
+  links and old `/l/` links go to the app, which redirects them.
 - `/api` is proxied to the running `app` container with the browser's `Host`
   kept, so the same-origin check passes. Pages load, save and record opens in
   the local database, exactly as on port 8610.
@@ -120,12 +125,12 @@ or two, without rebuilding the image. Everything runs in Docker:
 ### Opening a page on a phone
 
 Set `PUBLIC_BIND=0.0.0.0` in `.env`, run `./scripts/run.sh`, and open
-`http://<computer-ip>:8610/l/<slug>` from a phone on the same network. The
+`http://<computer-ip>:8610/<slug>` from a phone on the same network. The
 host firewall must allow the port. Set it back to `127.0.0.1` afterwards.
 
 The hot-reload dev server follows the same setting: with
 `PUBLIC_BIND=0.0.0.0`, start `./scripts/dev.sh` and open
-`http://<computer-ip>:5173/l/<slug>` on the phone; edits reload there too.
+`http://<computer-ip>:5173/<slug>` on the phone; edits reload there too.
 Allow port 5173 through the host firewall as well. The admin port always
 stays on `127.0.0.1`.
 

@@ -51,4 +51,4 @@ def test_public_root_serves_built_page_uncached(public_client: TestClient) -> No
 
 def test_admin_app_does_not_serve_public_routes(admin_client: TestClient) -> None:
     assert admin_client.get("/").headers["location"] == "/login"
-    assert admin_client.get("/l/" + "a" * 32).headers["location"] == "/login"
+    assert admin_client.get("/" + "a" * 32).headers["location"] == "/login"

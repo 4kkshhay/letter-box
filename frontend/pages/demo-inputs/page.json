@@ -2,6 +2,7 @@
   "slug": "inputs-demo-page",
   "title": "Inputs demo",
   "enabled": true,
+  "demo": true,
   "fields": {
     "time_of_day": { "type": "enum", "options": ["morning", "afternoon", "evening"] },
     "drinks": { "type": "multi", "options": ["tea", "coffee", "cocoa", "juice"] },

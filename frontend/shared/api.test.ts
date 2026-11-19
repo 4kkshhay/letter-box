@@ -15,9 +15,9 @@ afterEach(() => {
 
 describe("pageApiUrl", () => {
   it("uses the last path segment as the page key", () => {
-    expect(pageApiUrl("/l/abc-DEF_123")).toBe("/api/v1/pages/abc-DEF_123");
+    expect(pageApiUrl("/abc-DEF_123")).toBe("/api/v1/pages/abc-DEF_123");
     expect(pageApiUrl("/view/demo-static")).toBe("/api/v1/pages/demo-static");
-    expect(pageApiUrl("/l/abc/")).toBe("/api/v1/pages/abc");
+    expect(pageApiUrl("/abc/")).toBe("/api/v1/pages/abc");
   });
 });
 
@@ -31,7 +31,7 @@ describe("fetchPage", () => {
   it("requests the page uncached and returns its data", async () => {
     const data = { title: "T", fields: {}, state: {} };
     const fetchMock = stubFetch({ ok: true, status: 200, json: () => Promise.resolve(data) });
-    window.history.replaceState(null, "", "/l/some-slug");
+    window.history.replaceState(null, "", "/some-slug");
 
     await expect(fetchPage()).resolves.toEqual(data);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -72,7 +72,7 @@ describe("actions", () => {
       .mockReturnValue({ timeZone } as Intl.ResolvedDateTimeFormatOptions);
 
   it("saveFields sends a JSON PATCH and returns the saved state", async () => {
-    window.history.replaceState(null, "", "/l/some-slug");
+    window.history.replaceState(null, "", "/some-slug");
     setTimezone("Europe/London");
     const fetchMock = vi.fn().mockResolvedValue(ok({ state: { choice: "b" }, saved: true }));
     vi.stubGlobal("fetch", fetchMock);
@@ -86,7 +86,7 @@ describe("actions", () => {
   });
 
   it("recordOpen POSTs to its endpoint with keepalive", async () => {
-    window.history.replaceState(null, "", "/l/some-slug");
+    window.history.replaceState(null, "", "/some-slug");
     const fetchMock = vi.fn().mockResolvedValue(ok());
     vi.stubGlobal("fetch", fetchMock);
 
@@ -100,7 +100,7 @@ describe("actions", () => {
   });
 
   it.each(["navigate", "reload", "back_forward"])("recordOpen sends kind=%s", async (type) => {
-    window.history.replaceState(null, "", "/l/some-slug");
+    window.history.replaceState(null, "", "/some-slug");
     const fetchMock = vi.fn().mockResolvedValue(ok());
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(performance, "getEntriesByType").mockReturnValue([
@@ -115,7 +115,7 @@ describe("actions", () => {
   });
 
   it("recordOpen omits kinds the server does not record", async () => {
-    window.history.replaceState(null, "", "/l/some-slug");
+    window.history.replaceState(null, "", "/some-slug");
     const fetchMock = vi.fn().mockResolvedValue(ok());
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(performance, "getEntriesByType").mockReturnValue([

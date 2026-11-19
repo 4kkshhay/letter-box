@@ -39,7 +39,7 @@ def client(gated: Settings) -> TestClient:
 
 
 def guess(client: TestClient, password: str, slug: str = SLUG_A, **headers: str):
-    return client.post(f"/l/{slug}", data={"password": password}, headers={**ORIGIN, **headers})
+    return client.post(f"/{slug}", data={"password": password}, headers={**ORIGIN, **headers})
 
 
 def opens(settings: Settings) -> int:
@@ -48,7 +48,7 @@ def opens(settings: Settings) -> int:
 
 
 def test_locked_link_shows_gate_and_withholds_everything(client: TestClient, gated: Settings) -> None:
-    response = client.get(f"/l/{SLUG_A}")
+    response = client.get(f"/{SLUG_A}")
     assert response.status_code == 200
     assert "Juniper" in response.text
     assert 'name="password"' in response.text
@@ -65,7 +65,7 @@ def test_locked_link_shows_gate_and_withholds_everything(client: TestClient, gat
 
 
 def test_unknown_link_still_redirects_without_a_gate(client: TestClient) -> None:
-    for response in (client.get("/l/" + "x" * 32), guess(client, "marigold", "x" * 32)):
+    for response in (client.get("/" + "x" * 32), guess(client, "marigold", "x" * 32)):
         assert response.status_code == 302 and response.headers["location"] == "/"
 
 
@@ -81,19 +81,19 @@ def test_any_configured_password_unlocks_ignoring_case_and_spacing(
 ) -> None:
     response = guess(client, password)
     assert response.status_code == 303
-    assert response.headers["location"] == f"/l/{SLUG_A}"
+    assert response.headers["location"] == f"/{SLUG_A}"
     cookie = response.headers["set-cookie"]
     assert cookie.startswith(f"{UNLOCK_COOKIE}=")
     assert "HttpOnly" in cookie and "SameSite=lax" in cookie and "Max-Age=21600" in cookie
 
-    page = client.get(f"/l/{SLUG_A}")
+    page = client.get(f"/{SLUG_A}")
     assert "page alpha" in page.text and "x-page-gate" not in page.headers
     assert client.get(f"/api/v1/pages/{SLUG_A}").status_code == 200
     asset = client.get("/assets/abc123.js")
     assert asset.status_code == 200
     assert asset.headers["cache-control"] == "private, max-age=31536000, immutable"
     # The unlock is for this page only.
-    assert client.get(f"/l/{SLUG_B}").headers["x-page-gate"] == "locked"
+    assert client.get(f"/{SLUG_B}").headers["x-page-gate"] == "locked"
     assert client.get(f"/api/v1/pages/{SLUG_B}").status_code == 404
 
 
@@ -104,11 +104,11 @@ def test_wrong_password_shows_hint_after_three_misses(client: TestClient) -> Non
         assert "Not quite" in response.text
         assert "set-cookie" not in response.headers
         assert ("it grows in spring" in response.text) == (attempt >= 3)
-    assert "page alpha" not in client.get(f"/l/{SLUG_A}").text
+    assert "page alpha" not in client.get(f"/{SLUG_A}").text
 
 
 def test_unlock_requires_same_origin(client: TestClient) -> None:
-    response = client.post(f"/l/{SLUG_A}", data={"password": "marigold"})
+    response = client.post(f"/{SLUG_A}", data={"password": "marigold"})
     assert response.status_code == 403
     assert "set-cookie" not in response.headers
 
@@ -118,7 +118,7 @@ def test_page_asks_again_after_thirty_minutes_but_resources_last_longer(
 ) -> None:
     now = int(time.time())
     client.cookies.set(UNLOCK_COOKIE, create_unlock(gated.session_secret, "alpha", issued_at=now - 31 * 60))
-    assert client.get(f"/l/{SLUG_A}").headers["x-page-gate"] == "locked"
+    assert client.get(f"/{SLUG_A}").headers["x-page-gate"] == "locked"
     assert client.get(f"/api/v1/pages/{SLUG_A}").status_code == 200
     assert client.get("/assets/abc123.js").status_code == 200
 
@@ -138,7 +138,7 @@ def test_page_asks_again_after_thirty_minutes_but_resources_last_longer(
 )
 def test_forged_or_foreign_cookies_do_not_unlock(client: TestClient, value: str) -> None:
     client.cookies.set(UNLOCK_COOKIE, value)
-    assert client.get(f"/l/{SLUG_A}").headers["x-page-gate"] == "locked"
+    assert client.get(f"/{SLUG_A}").headers["x-page-gate"] == "locked"
     assert client.get("/assets/abc123.js").status_code == 302
 
 
@@ -174,7 +174,7 @@ def test_success_clears_earlier_misses(client: TestClient) -> None:
 
 def test_gate_off_without_hashes(with_pages: Settings) -> None:
     client = TestClient(create_public_app(with_pages, load_pages(with_pages.static_dir)), follow_redirects=False)
-    assert "page alpha" in client.get(f"/l/{SLUG_A}").text
+    assert "page alpha" in client.get(f"/{SLUG_A}").text
     assert client.get("/assets/abc123.js").status_code == 200
     assert guess(client, "anything").status_code == 303
 
@@ -182,7 +182,7 @@ def test_gate_off_without_hashes(with_pages: Settings) -> None:
 def test_gate_without_recipient_greets_you(with_pages: Settings) -> None:
     settings = replace(with_pages, page_password_hashes=HASHES)
     client = TestClient(create_public_app(settings, load_pages(settings.static_dir)))
-    text = client.get(f"/l/{SLUG_A}").text
+    text = client.get(f"/{SLUG_A}").text
     assert "<title>A space for you</title>" in text and ">you</h1>" in text
 
 

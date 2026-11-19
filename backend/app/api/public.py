@@ -154,6 +154,16 @@ def _gate(request: Request, *, status_code: int = 200, message: str = "", hint: 
 
 
 @router.api_route("/l/{slug}", methods=["GET", "HEAD"])
+def legacy_page_link(slug: str, request: Request) -> Response:
+    """Links used to live under /l/; send any older ones to the page's address."""
+    if _page_for(request, slug) is None:
+        return redirect_to_root()
+    return RedirectResponse(f"/{slug}", status_code=302, headers=NO_STORE)
+
+
+# Single path segments only. Slugs are at least 10 characters, so they can
+# never equal a fixed route such as /health, /api, /assets or /gate.
+@router.api_route("/{slug}", methods=["GET", "HEAD"])
 def page_html(slug: str, request: Request) -> Response:
     page = _page_for(request, slug)
     if page is None:
@@ -163,7 +173,7 @@ def page_html(slug: str, request: Request) -> Response:
     return FileResponse(page.html_path, headers=NO_STORE)
 
 
-@router.post("/l/{slug}")
+@router.post("/{slug}")
 async def unlock_page(slug: str, request: Request) -> Response:
     """Check the gate password; on success, unlock this page and show it."""
     page = _page_for(request, slug)
