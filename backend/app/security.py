@@ -74,13 +74,18 @@ def install_security_middleware(
 
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
-        response.headers["Referrer-Policy"] = referrer_policy
+        # A route may ask for a different policy (the page gate's form does).
+        response.headers.setdefault("Referrer-Policy", referrer_policy)
         if settings.is_production:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
             )
         if request.url.path.startswith("/assets/") and response.status_code == 200:
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            # Private: a shared cache (Cloudflare) must never serve page assets
+            # to someone who has not unlocked a page.
+            response.headers["Cache-Control"] = "private, max-age=31536000, immutable"
+        elif request.url.path.startswith("/gate/") and response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=86400"
         else:
             response.headers["Cache-Control"] = "no-store"
         return response

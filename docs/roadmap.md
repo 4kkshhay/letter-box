@@ -65,6 +65,20 @@ admin views change nothing; admin routes absent from the public port.
 
 **Exit:** end-to-end over HTTPS; data survives redeploy; old links work.
 
+## Phase 5.5 — Page password gate
+
+- [x] Gate on every page link: shared, elegant, neutral screen with a password field
+- [x] Server withholds page HTML, assets and API until unlocked
+- [x] Multiple password hashes in `.env`; input lowercased, trimmed and normalised before hashing
+- [x] Unlock lasts 30 minutes; every later visit asks again
+- [x] Opens recorded only after unlock
+- [x] Hint shown after 3 failed attempts
+- [x] Generous per-visitor attempt limits until the first unlock, tighter after
+- [x] Hash script, tests and docs updated
+
+**Exit:** no page content reachable without a correct password; correct
+password opens the page from any case or spacing.
+
 ## Phase 6 — Real pages (deferred)
 
 Designed and built one at a time on the finished platform.

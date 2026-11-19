@@ -44,6 +44,18 @@ server deploy (deferred item F-006).
 | Container settings | Runs as uid 1000; 256 MB limit applied; about 43 MB in use when idle; runtime image 204 MB |
 | Logging | A request to a slug-shaped path does not appear in container logs |
 
+### Page password gate (2026-11-19, Phase 5.5)
+
+- Gate on `/l/<slug>` with an unlock cookie checked on page HTML, the page API
+  and `/assets/`; multiple normalised password hashes; per-visitor limits
+  with a hint after three misses; off when no hashes are set (D-071–D-076).
+- Verified: 193 backend and 36 frontend tests. Rendered on iPhone 13, iPhone
+  SE and desktop in light and dark, with no horizontal scroll. Unlocking with
+  ` MariGold ` opened the page.
+- Owner verified on a phone over the LAN: gate shown on both the app and dev
+  server ports, correct password opens the page. Placeholder reads "secret
+  word".
+
 ### Not yet verified
 
 - Image build on arm64 (F-006).

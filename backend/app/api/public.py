@@ -1,18 +1,32 @@
 """Public routes: page HTML by link, and the page API."""
 
 import json
+from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
+from app.gate import (
+    HINT_AFTER_FAILURES,
+    MAX_PASSWORD_CHARS,
+    PAGE_UNLOCK_SECONDS,
+    RESOURCE_UNLOCK_SECONDS,
+    UNLOCK_COOKIE,
+    GateThrottle,
+    create_unlock,
+    password_matches,
+    unlocked,
+)
 from app.services.pages import Page
 from app.services.state import (
     OPEN_KINDS,
     InvalidFields,
     OpenLocation,
+    page_was_opened,
     visitor_timezone,
     read_state,
     record_open,
@@ -24,6 +38,8 @@ NO_STORE = {"Cache-Control": "no-store"}
 MAX_BODY_BYTES = 64 * 1024
 
 router = APIRouter()
+gate_templates = Jinja2Templates(directory=Path(__file__).parent.parent / "gate" / "templates")
+gate_throttle = GateThrottle()
 
 
 def redirect_to_root() -> RedirectResponse:
@@ -34,9 +50,25 @@ def _page_for(request: Request, slug: str) -> Page | None:
     return request.app.state.pages.by_slug(slug)
 
 
+def gate_enabled(request: Request) -> bool:
+    return bool(request.app.state.settings.page_password_hashes)
+
+
+def has_unlock(request: Request, page: Page | None, max_age: int) -> bool:
+    """Whether the gate lets this request through; always when the gate is off."""
+    if not gate_enabled(request):
+        return True
+    return unlocked(
+        request.cookies.get(UNLOCK_COOKIE),
+        request.app.state.settings.session_secret,
+        page_name=page.name if page else None,
+        max_age=max_age,
+    )
+
+
 def _require_page(request: Request, slug: str) -> Page:
     page = _page_for(request, slug)
-    if page is None:
+    if page is None or not has_unlock(request, page, RESOURCE_UNLOCK_SECONDS):
         # Same body as an unmatched route, so nothing distinguishes the two.
         raise HTTPException(status_code=404, detail="Not Found")
     return page
@@ -98,12 +130,95 @@ def _open_location(request: Request) -> OpenLocation:
     )
 
 
+def _visitor(request: Request) -> str:
+    # The origin is reachable only through the tunnel, which sets this header.
+    return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "")
+
+
+def _gate(request: Request, *, status_code: int = 200, message: str = "", hint: bool = False) -> Response:
+    recipient = request.app.state.recipient
+    return gate_templates.TemplateResponse(
+        request,
+        "gate.html",
+        {
+            "name": recipient.name,
+            "message": message,
+            "hint": recipient.hint if hint else "",
+            "attempted": request.method == "POST",
+        },
+        status_code=status_code,
+        # Form posts from a `no-referrer` page carry `Origin: null`, which the
+        # same-origin check rejects; this page's own address is never sent off-site.
+        headers={**NO_STORE, "Referrer-Policy": "same-origin", "X-Page-Gate": "locked"},
+    )
+
+
 @router.api_route("/l/{slug}", methods=["GET", "HEAD"])
 def page_html(slug: str, request: Request) -> Response:
     page = _page_for(request, slug)
     if page is None:
         return redirect_to_root()
+    if not has_unlock(request, page, PAGE_UNLOCK_SECONDS):
+        return _gate(request)
     return FileResponse(page.html_path, headers=NO_STORE)
+
+
+@router.post("/l/{slug}")
+async def unlock_page(slug: str, request: Request) -> Response:
+    """Check the gate password; on success, unlock this page and show it."""
+    page = _page_for(request, slug)
+    if page is None:
+        return redirect_to_root()
+    if not gate_enabled(request):
+        return RedirectResponse(request.url.path, status_code=303, headers=NO_STORE)
+    require_same_origin(request)
+    settings = request.app.state.settings
+    visitor = _visitor(request)
+    # Generous until the page is first opened, so working out the password
+    # never locks its first visitor out.
+    tight = await run_in_threadpool(page_was_opened, settings.database_path, page)
+    if not gate_throttle.allowed(visitor, tight=tight):
+        return _gate(
+            request,
+            status_code=429,
+            message="Let's pause for a moment. Try again in a little while.",
+            hint=True,
+        )
+
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > 4096:
+            raise HTTPException(status_code=413, detail="Request body too large")
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    password = ""
+    if content_type == "application/x-www-form-urlencoded":
+        password = parse_qs(body.decode("utf-8", errors="replace")).get("password", [""])[0]
+    password = password[:MAX_PASSWORD_CHARS]
+
+    if not await run_in_threadpool(password_matches, password, settings.page_password_hashes):
+        if password.strip():
+            gate_throttle.failed(visitor)
+        failures = gate_throttle.failures(visitor)
+        return _gate(
+            request,
+            status_code=401,
+            message="Not quite. Try once more.",
+            hint=failures >= HINT_AFTER_FAILURES,
+        )
+
+    gate_throttle.succeeded(visitor)
+    response = RedirectResponse(request.url.path, status_code=303, headers=NO_STORE)
+    response.set_cookie(
+        UNLOCK_COOKIE,
+        create_unlock(settings.session_secret, page.name),
+        max_age=RESOURCE_UNLOCK_SECONDS,
+        httponly=True,
+        secure=settings.is_production,
+        samesite="lax",
+        path="/",
+    )
+    return response
 
 
 @router.get("/api/v1/pages/{slug}")

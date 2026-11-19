@@ -31,6 +31,7 @@ directory, builds the image, starts the stack and waits until it is healthy.
 | `./scripts/restart.sh` | Restart without rebuilding |
 | `./scripts/test.sh` | Type-check and build the pages, run backend tests |
 | `./scripts/hash-admin-password.sh` | Generate a scrypt password hash for `.env` |
+| `./scripts/hash-page-password.sh` | Generate `PAGE_PASSWORD_HASHES` for the page gate (one or more passwords) |
 | `./scripts/export-db` | Snapshot the running SQLite database to `data/exports/` |
 | `docker compose logs -f app` | Follow logs |
 | `docker compose down` | Stop and remove the container (data is kept) |
@@ -62,6 +63,14 @@ it before using the app with real data:
 Copy the printed `ADMIN_PASSWORD_HASH='…'` line into `.env`, and replace
 `SESSION_SECRET` with a long random value. The plain password is never stored.
 The admin dashboard is at `http://localhost:8611/`.
+
+### Page password gate
+
+Off while `PAGE_PASSWORD_HASHES` is empty (the default). To try it, set it
+from `./scripts/hash-page-password.sh` and restart with `./scripts/run.sh`.
+The dev server shows the app's gate too and proxies the unlock, so unlock
+once at `/l/<words>` on either port. The greeting name and hint are in
+`frontend/shared/recipient.json`; rebuild after changing them.
 
 ## Adding a page
 

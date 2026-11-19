@@ -130,6 +130,7 @@ APP_UID=<output of id -u letterbox>
 APP_GID=<output of id -g letterbox>
 ADMIN_PASSWORD_HASH='<generated scrypt hash>'
 SESSION_SECRET=<long random value, at least 32 characters>
+PAGE_PASSWORD_HASHES='<hashes from scripts/hash-page-password.sh, or empty for no gate>'
 TUNNEL_TOKEN=<from the Cloudflare dashboard>
 ```
 
@@ -143,6 +144,15 @@ the assignment with `scripts/hash-admin-password.sh`. Sessions are signed with
 `SESSION_SECRET`, which must be at least 32 characters in production. Keep both
 values in `.env` only. Production cookies are always marked `Secure` from
 `APP_ENV`, without trusting forwarded scheme headers.
+
+## Page password gate
+
+`PAGE_PASSWORD_HASHES` holds one or more comma-separated scrypt hashes from
+`scripts/hash-page-password.sh` (run it locally and copy the printed line);
+any one password opens every page. Leaving it empty turns the gate off. The
+start log says `Page gate: on (N password(s))` or `Page gate: off`. The
+greeting name and hint live in `frontend/shared/recipient.json` and ship
+with the image.
 
 ## Data
 

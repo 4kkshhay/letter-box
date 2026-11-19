@@ -4,6 +4,8 @@ They share services and the database but are served on separate ports, and
 admin routes are never mounted on the public app.
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, Response
@@ -13,10 +15,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.admin import routes as admin
 from app.admin.auth import SESSION_COOKIE, password_hash_configured, valid_session
 from app.api import health, public
-from app.api.public import NO_STORE, redirect_to_root
+from app.api.public import NO_STORE, has_unlock, redirect_to_root
 from app.config import Settings
+from app.gate import RESOURCE_UNLOCK_SECONDS, load_recipient
 from app.security import install_security_middleware
 from app.services.pages import PageRegistry
+
+GATE_STATIC_DIR = Path(__file__).parent / "gate" / "static"
 
 
 def _base_app(settings: Settings, pages: PageRegistry) -> FastAPI:
@@ -28,10 +33,22 @@ def _base_app(settings: Settings, pages: PageRegistry) -> FastAPI:
 
 
 def create_public_app(settings: Settings, pages: PageRegistry) -> FastAPI:
+    if settings.page_password_hashes and not settings.session_secret:
+        raise RuntimeError("SESSION_SECRET is missing; the page gate signs its cookie with it")
     app = _base_app(settings, pages)
+    app.state.recipient = load_recipient(settings.static_dir)
     app.include_router(public.router)
     root_page = settings.static_dir / "index.html"
     assets_dir = settings.static_dir / "assets"
+
+    @app.middleware("http")
+    async def lock_assets(request: Request, call_next):
+        """Page scripts, styles and media are only for a visitor who unlocked a page."""
+        if request.url.path.startswith("/assets/") and not has_unlock(
+            request, None, RESOURCE_UNLOCK_SECONDS
+        ):
+            return redirect_to_root()
+        return await call_next(request)
 
     @app.api_route("/", methods=["GET", "HEAD"])
     def root() -> FileResponse:
@@ -40,6 +57,8 @@ def create_public_app(settings: Settings, pages: PageRegistry) -> FastAPI:
     # The build only emits an assets directory once a page has scripts or media.
     if assets_dir.is_dir():
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+    # The gate's own fonts; reachable without unlocking.
+    app.mount("/gate", StaticFiles(directory=GATE_STATIC_DIR), name="gate")
 
     @app.exception_handler(StarletteHTTPException)
     async def not_found(request: Request, exc: StarletteHTTPException) -> Response:

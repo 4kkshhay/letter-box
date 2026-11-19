@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import type { IncomingMessage } from "node:http";
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
-import type { Plugin } from "vite";
+import type { Plugin, ProxyOptions } from "vite";
 import { defineConfig } from "vitest/config";
 
 const root = import.meta.dirname;
@@ -23,12 +24,20 @@ for (const name of pages) {
   input[name] = html;
 }
 
-/** Writes each page's page.json next to its built HTML, where the backend reads it. */
+/**
+ * Writes each page's page.json next to its built HTML, and the gate's
+ * recipient.json at the root, where the backend reads them.
+ */
 function pageConfigs(): Plugin {
   return {
     name: "letterbox-page-configs",
     apply: "build",
     generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "recipient.json",
+        source: readFileSync(resolve(root, "shared", "recipient.json")),
+      });
       for (const name of pages) {
         this.emitFile({
           type: "asset",
@@ -55,6 +64,21 @@ function pageForSlug(slug: string): string | undefined {
     });
 }
 
+const apiTarget = process.env.API_TARGET ?? "http://127.0.0.1:8610";
+
+/** The app's password gate for this link, if the app has it on and the visitor is locked out. */
+async function lockedGate(req: IncomingMessage): Promise<string | undefined> {
+  try {
+    const response = await fetch(`${apiTarget}${req.url}`, {
+      headers: { cookie: req.headers.cookie ?? "" },
+      redirect: "manual",
+    });
+    return response.headers.get("x-page-gate") === "locked" ? await response.text() : undefined;
+  } catch {
+    return undefined; // App not running: show the page.
+  }
+}
+
 /** Dev server only: serve each page at its real link, /l/<slug>, as the site does. */
 function pageLinks(): Plugin {
   return {
@@ -64,11 +88,19 @@ function pageLinks(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const match = /^\/l\/([a-z0-9-]+)\/?(\?.*)?$/.exec(req.url ?? "");
         const name = match ? pageForSlug(match[1]) : undefined;
-        if (!name) {
+        // Unlock posts go to the app (see the proxy below).
+        if (!name || req.method !== "GET") {
           next();
           return;
         }
         try {
+          const gate = await lockedGate(req);
+          if (gate !== undefined) {
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            res.setHeader("Cache-Control", "no-store");
+            res.end(gate);
+            return;
+          }
           // The URL stays /l/<slug> (the page reads it), so point relative
           // script and asset paths at the page directory.
           const source = readFileSync(resolve(pagesDir, name, "index.html"), "utf8");
@@ -87,23 +119,24 @@ function pageLinks(): Plugin {
   };
 }
 
+const toApp: ProxyOptions = {
+  target: apiTarget,
+  changeOrigin: false,
+  configure: (proxy) =>
+    proxy.on("proxyReq", (proxyReq, req) => {
+      if (req.headers.host) {
+        proxyReq.setHeader("host", req.headers.host);
+      }
+    }),
+};
+
 export default defineConfig({
   plugins: [react(), pageConfigs(), pageLinks()],
   server: {
-    // Page API calls go to the running app, so pages load and save local data.
-    // The Host header is kept, so the app's same-origin check still passes.
-    proxy: {
-      "/api": {
-        target: process.env.API_TARGET ?? "http://127.0.0.1:8610",
-        changeOrigin: false,
-        configure: (proxy) =>
-          proxy.on("proxyReq", (proxyReq, req) => {
-            if (req.headers.host) {
-              proxyReq.setHeader("host", req.headers.host);
-            }
-          }),
-      },
-    },
+    // Page API calls, gate unlocks and gate fonts go to the running app, so
+    // pages load and save local data. The Host header is kept, so the app's
+    // same-origin check still passes.
+    proxy: { "/api": toApp, "/gate": toApp, "^/l/": toApp },
     // Containers get no file-change events from a Windows-drive bind mount.
     watch: process.env.VITE_POLL ? { usePolling: true, interval: 300 } : undefined,
   },

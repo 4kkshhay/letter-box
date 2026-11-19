@@ -37,6 +37,8 @@ def main() -> None:
     # Invalid page configs abort the start before anything is served.
     pages = load_pages(settings.static_dir)
     print(f"Loaded {len(pages.pages)} page(s)", flush=True)
+    gate = settings.page_password_hashes
+    print(f"Page gate: {f'on ({len(gate)} password(s))' if gate else 'off'}", flush=True)
     run_migrations(settings.database_path, settings.migrations_dir)
     asyncio.run(serve(settings, pages))
 
