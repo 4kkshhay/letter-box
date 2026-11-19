@@ -143,3 +143,10 @@ def record_open(
             " VALUES (?, ?, ?, ?, ?, ?, ?)",
             (page.name, utc_now(), kind, location.city, location.region, location.country, tz),
         )
+
+
+def page_was_opened(database_path: Path, page: Page) -> bool:
+    """Whether the page has any recorded open since its last reset."""
+    with connect(database_path, read_only=True) as conn:
+        row = conn.execute("SELECT 1 FROM page_opens WHERE page = ? LIMIT 1", (page.name,)).fetchone()
+    return row is not None

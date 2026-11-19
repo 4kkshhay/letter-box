@@ -137,12 +137,14 @@ JSON API under `/api/v1`, `Cache-Control: no-store`.
 | Method | Route | Behaviour |
 | --- | --- | --- |
 | GET | `/` | Neutral "Nothing here" page |
-| GET | `/l/{slug}` | Page HTML; unknown or disabled redirects to `/` |
+| GET | `/l/{slug}` | Page HTML, or the password gate while locked; unknown or disabled redirects to `/` |
+| POST | `/l/{slug}` | Gate password (form field `password`); on success sets the unlock cookie and redirects to the page |
 | GET | any other path | Redirects to `/` |
 | GET | `/api/v1/pages/{slug}` | Title, fields, saved state |
 | PATCH | `/api/v1/pages/{slug}/state?tz=` | Validate and merge submitted fields; optional visitor timezone |
 | POST | `/api/v1/pages/{slug}/open?kind=&tz=` | Record one open with its optional navigation type and visitor timezone |
-| GET | `/assets/*` | Build files named by content hash only; no listing |
+| GET | `/assets/*` | Build files named by content hash only; no listing; need an unlock while the gate is on |
+| GET | `/gate/*` | The gate's own fonts; always public |
 | GET | `/health`, `/health/ready` | Liveness; database readiness |
 
 Response of `GET /api/v1/pages/{slug}`; it never contains the slug or the
@@ -188,17 +190,42 @@ Mutation rules (`PATCH` and `POST`):
 | Body at most 64 KiB (state only) | `413` |
 | Body is `{"fields": {…}}` with at least one field | `422` |
 
-API calls for an unknown or disabled slug return the same generic `404` as
-any unmatched API path. Page links and `/` also answer `HEAD`.
+API calls for an unknown or disabled slug, or a locked one, return the same
+generic `404` as any unmatched API path. Page links and `/` also answer `HEAD`.
 
 Every response sends `X-Robots-Tag: noindex, nofollow`,
 `Referrer-Policy: no-referrer` (admin app: `same-origin`, so its form posts
 keep their `Origin`), `X-Content-Type-Options: nosniff`, a restrictive
 content security policy and framing/permissions restrictions. Production also
 sends HSTS. HTML, API, health, redirects and errors use `Cache-Control:
-no-store`; only content-hashed files below `/assets/` are cached for one year
-as immutable. Mutation requests with a declared body over 64 KiB are rejected
+no-store`; only content-hashed files below `/assets/` are cached, privately,
+for one year as immutable (never by Cloudflare, since they need an unlock),
+and the gate's fonts publicly for a day. Mutation requests with a declared body over 64 KiB are rejected
 before routing.
+
+### Password gate
+
+On when `PAGE_PASSWORD_HASHES` lists at least one scrypt hash; empty turns it
+off and every link opens directly. An invalid hash aborts the start.
+
+- A locked `/l/{slug}` returns the gate: a server-rendered, script-free page
+  greeting the recipient named in `frontend/shared/recipient.json` (empty
+  name: "you"), with one password field. It sends `Referrer-Policy:
+  same-origin` so its form post keeps `Origin`, and `X-Page-Gate: locked`.
+- The submitted password is normalised (Unicode NFKC, case-folded, spaces
+  trimmed and collapsed) and checked against every configured hash; any match
+  unlocks. `scripts/hash-page-password.sh` normalises the same way.
+- Success sets `letterbox_unlock`: an HMAC-signed `HttpOnly`, `SameSite=Lax`
+  cookie (also `Secure` in production) naming the one page it unlocks, keyed
+  from `SESSION_SECRET`. The page's HTML is served for 30 minutes after
+  unlocking, so every later visit asks again; its API and the shared
+  `/assets/` accept the cookie for six hours, so an open page keeps working.
+- Wrong guesses are counted per visitor (`CF-Connecting-IP`), in memory: up
+  to 20 an hour while the page has never been opened, then 5 per 15 minutes.
+  Over the limit the gate answers `429` and checks nothing. After three
+  misses the gate shows the recipient file's hint. Success clears the count.
+- Gate views record nothing; opens are recorded only by the page itself,
+  after unlocking.
 
 ### Shared client
 

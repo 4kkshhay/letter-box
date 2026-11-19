@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.gate import parse_password_hashes
+
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -19,6 +21,8 @@ class Settings:
     admin_port: int
     admin_password_hash: str
     session_secret: str
+    # Page gate: empty means off, and every page link opens directly.
+    page_password_hashes: tuple[str, ...] = ()
 
     @property
     def is_production(self) -> bool:
@@ -38,4 +42,5 @@ def get_settings() -> Settings:
         admin_port=int(env.get("ADMIN_LISTEN_PORT", "8001")),
         admin_password_hash=env.get("ADMIN_PASSWORD_HASH", ""),
         session_secret=env.get("SESSION_SECRET", ""),
+        page_password_hashes=parse_password_hashes(env.get("PAGE_PASSWORD_HASHES", "")),
     )

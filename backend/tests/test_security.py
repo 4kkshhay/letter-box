@@ -38,7 +38,7 @@ def test_referrer_policy_keeps_admin_form_origin(
 def test_only_hashed_assets_are_long_cached(public_client: TestClient) -> None:
     asset = public_client.get("/assets/abc123.js")
     assert asset.status_code == 200
-    assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert asset.headers["cache-control"] == "private, max-age=31536000, immutable"
     assert public_client.get(f"/l/{SLUG_A}").headers["cache-control"] == "no-store"
 
 
