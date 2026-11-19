@@ -33,7 +33,8 @@ services:
       - ./frontend:/frontend
       - frontend-node-modules:/frontend/node_modules
     ports:
-      - "127.0.0.1:${DEV_PORT:-5173}:5173"
+      # Follows PUBLIC_BIND, so PUBLIC_BIND=0.0.0.0 also opens it to phones on the LAN.
+      - "${PUBLIC_BIND:-127.0.0.1}:${DEV_PORT:-5173}:5173"
     depends_on:
       app:
         condition: service_healthy

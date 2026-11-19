@@ -114,6 +114,12 @@ Set `PUBLIC_BIND=0.0.0.0` in `.env`, run `./scripts/run.sh`, and open
 `http://<computer-ip>:8610/l/<slug>` from a phone on the same network. The
 host firewall must allow the port. Set it back to `127.0.0.1` afterwards.
 
+The hot-reload dev server follows the same setting: with
+`PUBLIC_BIND=0.0.0.0`, start `./scripts/dev.sh` and open
+`http://<computer-ip>:5173/l/<slug>` on the phone; edits reload there too.
+Allow port 5173 through the host firewall as well. The admin port always
+stays on `127.0.0.1`.
+
 ## Configuration
 
 All settings live in `.env` (see `.env.example`).
