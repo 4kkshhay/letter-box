@@ -74,8 +74,8 @@ def test_page_view_shows_stats_responses_and_opens_by_day(
     assert response.headers["cache-control"] == "no-store"
     text = response.text
     # Copy-only: following the public link would record an open.
-    assert f"<code>http://localhost:8610/l/{SLUG_B}</code>" in text
-    assert f'href="http://localhost:8610/l/{SLUG_B}"' not in text
+    assert f"<code>http://localhost:8610/{SLUG_B}</code>" in text
+    assert f'href="http://localhost:8610/{SLUG_B}"' not in text
     assert 'href="/view/beta"' in text
     assert 'href="/pages/beta/qr.png"' in text
     assert 'action="/pages/beta/reset"' in text
@@ -196,7 +196,7 @@ def test_production_qr_url_requires_public_https_origin(with_pages: Settings) ->
             raise AssertionError(f"unsafe production URL accepted: {base_url}")
     assert (
         public_page_url("https://letterbox.ink", page, production=True)
-        == f"https://letterbox.ink/l/{SLUG_B}"
+        == f"https://letterbox.ink/{SLUG_B}"
     )
 
 

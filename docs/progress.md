@@ -66,6 +66,14 @@ server deploy (deferred item F-006).
   tests. Rendered at phone size: greeting, crossfade and a photo chapter,
   with no horizontal scroll.
 
+### Links without `/l/` (2026-11-19)
+
+- Pages are served at `/<slug>`; old `/l/<slug>` links redirect there; the
+  admin public link and QR codes use the new form (D-080). The dev server
+  serves pages at the same address.
+- Verified: 199 backend and 39 frontend tests; dev server serves
+  `/not-just-a-coincidence`.
+
 ### Not yet verified
 
 - Image build on arm64 (F-006).

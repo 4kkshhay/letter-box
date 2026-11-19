@@ -9,7 +9,7 @@ scope by design are listed in the [roadmap](roadmap.md).
 | --- | --- | --- | --- | --- |
 | F-002 | Phase 1 | Linters and formatters (ruff, ESLint, Prettier) | Little code so far; keeps tooling minimal | When the codebase grows or style drifts |
 | F-007 | Phase 2 | Whether demo pages stay in production (keep, disable or remove) | Kept for now as diagnostics; not a final decision (D-063) | Later |
-| F-009 | Phase 2 | Rate limit on `/l/*` and `/api/v1/pages/*` to slow link guessing | Optional hardening; readable links make guessing possible; best done as a Cloudflare rate-limiting rule on `letterbox.ink` | Later, before real pages are widely shared |
+| F-009 | Phase 2 | Rate limit on page links (`/<slug>`) and `/api/v1/pages/*` to slow link guessing | Optional hardening; readable links make guessing possible; best done as a Cloudflare rate-limiting rule on `letterbox.ink` | Later, before real pages are widely shared |
 | F-012 | Phase 5 | Cloudflare Access (Zero Trust, free tier) in front of `admin.letterbox.ink`, e.g. one-time email code for the owner's address | Optional hardening; stops password brute-forcing and the shared five-attempt login lockout being triggered by others; the app's own login stays as the second layer | Later |
 
 ## Resolved

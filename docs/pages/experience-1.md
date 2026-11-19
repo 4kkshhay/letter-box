@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Page name | `experience-1-not-just-a-coincidence` |
-| Link | `/l/not-just-a-coincidence` |
+| Link | `/not-just-a-coincidence` |
 | Tab title | Hello |
 | Saved fields | None |
 | Status | Structure and theme built; story text and photo are placeholders |

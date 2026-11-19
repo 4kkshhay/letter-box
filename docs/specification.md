@@ -4,7 +4,7 @@
 
 - **Page** — one directory under `frontend/pages/`, reachable at one permanent
   link and printed as one QR code.
-- **Slug** — the words that make up the link: `https://letterbox.ink/l/<slug>`.
+- **Slug** — the words that make up the link: `https://letterbox.ink/<slug>`.
 - **Field** — a named input a page may save and restore.
 
 ## Page config
@@ -137,8 +137,9 @@ JSON API under `/api/v1`, `Cache-Control: no-store`.
 | Method | Route | Behaviour |
 | --- | --- | --- |
 | GET | `/` | Neutral "Nothing here" page |
-| GET | `/l/{slug}` | Page HTML, or the password gate while locked; unknown or disabled redirects to `/` |
-| POST | `/l/{slug}` | Gate password (form field `password`); on success sets the unlock cookie and redirects to the page |
+| GET | `/{slug}` | Page HTML, or the password gate while locked; unknown or disabled redirects to `/` |
+| POST | `/{slug}` | Gate password (form field `password`); on success sets the unlock cookie and redirects to the page |
+| GET | `/l/{slug}` | Old link form: redirects (`302`) to `/{slug}`; unknown or disabled redirects to `/` |
 | GET | any other path | Redirects to `/` |
 | GET | `/api/v1/pages/{slug}` | Title, fields, saved state |
 | PATCH | `/api/v1/pages/{slug}/state?tz=` | Validate and merge submitted fields; optional visitor timezone |
@@ -208,7 +209,7 @@ before routing.
 On when `PAGE_PASSWORD_HASHES` lists at least one scrypt hash; empty turns it
 off and every link opens directly. An invalid hash aborts the start.
 
-- A locked `/l/{slug}` returns the gate: a server-rendered, script-free page
+- A locked `/{slug}` returns the gate: a server-rendered, script-free page
   greeting the recipient named in `frontend/shared/recipient.json` (empty
   name: "you"), with one password field. It sends `Referrer-Policy:
   same-origin` so its form post keeps `Origin`, and `X-Page-Gate: locked`.

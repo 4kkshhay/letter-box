@@ -67,7 +67,9 @@ flowchart TD
     S --> D[(SQLite file on host mount)]
 ```
 
-- `GET /l/<slug>` returns that page's HTML. Any unknown or disabled link
+- `GET /<slug>` returns that page's HTML (old `/l/<slug>` links redirect
+  there). Slugs are at least 10 characters, so they never collide with the
+  fixed routes (`/api`, `/assets`, `/gate`, `/health`). Any unknown or disabled link
   redirects to the site root, which shows only a neutral "Nothing here"
   message. The page then calls the public API to load saved state and report
   that it was opened.

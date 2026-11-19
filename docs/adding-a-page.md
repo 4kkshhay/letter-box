@@ -11,7 +11,7 @@ after a QR code is distributed can break the link or detach saved data.
 ```
 
 This creates `frontend/pages/example-page/` from `_template` and sets its
-public path to `/l/several-chosen-words`. Names and slugs use lowercase words
+public path to `/several-chosen-words`. Names and slugs use lowercase words
 separated by hyphens; slugs are 10–100 characters and unique.
 
 Real pages are named `experience-<number>-<words>`, numbered in order (for
