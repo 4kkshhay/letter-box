@@ -10,6 +10,7 @@
     <title>{% if name %}For {{ name }}{% else %}A space for you{% endif %}</title>
     <link rel="preload" href="/gate/cormorant-italic.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/gate/cormorant.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="/gate/gate.js" defer></script>
     <style>
       @font-face { font-family: "Gate Serif"; src: url("/gate/cormorant.woff2") format("woff2");
         font-weight: 500; font-style: normal; font-display: block; }
@@ -77,6 +78,9 @@
       }
       button:hover { background: color-mix(in srgb, var(--ink) 85%, var(--gold)); }
       button:active { transform: scale(.94); }
+      input:disabled, button:disabled { cursor: not-allowed; opacity: .45; }
+      button:disabled:active { transform: none; }
+      .countdown { color: var(--ink); font-variant-numeric: tabular-nums; }
       button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
       button svg { width: 1.1rem; height: 1.1rem; }
       .message { min-height: 3.2rem; margin: 1rem 0 0; color: var(--muted); font-style: italic; font-size: 1.05rem; }
@@ -107,19 +111,22 @@
         <path d="M30 8h60"/><circle cx="60" cy="8" r="1.6" fill="currentColor" stroke="none"/>
       </svg>
       <form class="rise" method="post">
+        <input id="tz" name="tz" type="hidden">
         <div class="field">
-          <label class="sr" for="password">Password</label>
+          <label class="sr" for="password">Secret word</label>
           <input id="password" name="password" type="password" placeholder="secret word" maxlength="200" required
             autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go"
-            aria-describedby="message"{% if attempted %} autofocus{% endif %}>
-          <button type="submit" aria-label="Open">
+            aria-describedby="message"{% if retry_after %} disabled{% elif attempted %} autofocus{% endif %}>
+          <button type="submit" aria-label="Open"{% if retry_after %} disabled{% endif %}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M5 12h14M13 6l6 6-6 6"/>
             </svg>
           </button>
         </div>
         <p id="message" class="message{% if message %} error{% endif %}" role="status" aria-live="polite">
-          {%- if message %}{{ message }}{% endif %}
+          {%- if retry_after %}That's a few too many tries for now.<br>
+          You can try again in <time class="countdown" data-countdown="{{ retry_after }}">{{ countdown }}</time>.
+          {%- elif message %}{{ message }}{% endif %}
           {%- if hint %}<span class="hint">A little hint: <b>{{ hint }}</b></span>{% endif -%}
         </p>
       </form>

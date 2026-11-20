@@ -10,6 +10,7 @@ loses its images or saves mid-visit.
 import hashlib
 import hmac
 import json
+import math
 import time
 import unicodedata
 from collections import deque
@@ -120,11 +121,16 @@ class GateThrottle:
         with self._lock:
             return len(self._recent(visitor, time.monotonic()))
 
-    def allowed(self, visitor: str, *, tight: bool) -> bool:
+    def retry_after(self, visitor: str, *, tight: bool) -> int:
+        """Seconds until this visitor may guess again; 0 when they may now."""
         limit, seconds = self.TIGHT if tight else self.GENEROUS
         with self._lock:
             now = time.monotonic()
-            return sum(1 for at in self._recent(visitor, now) if now - at < seconds) < limit
+            counted = [at for at in self._recent(visitor, now) if now - at < seconds]
+        if len(counted) < limit:
+            return 0
+        # Wait until enough of the counted misses fall out of the window.
+        return max(1, math.ceil(seconds - (now - counted[len(counted) - limit])))
 
     def failed(self, visitor: str) -> None:
         with self._lock:

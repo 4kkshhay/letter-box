@@ -134,6 +134,21 @@ One row per reported page load.
 | `city`, `region`, `country` | TEXT NULL | Approximate location from Cloudflare headers (added by migration 0003) |
 | `tz` | TEXT NULL | Visitor's IANA timezone from the browser (migration 0004) |
 
+### `gate_attempts`
+
+One row per secret word entered on the password gate (migration 0005).
+Not tied to a page reset; cleared from the admin dashboard.
+
+| Column | Type | Purpose |
+| --- | --- | --- |
+| `id` | INTEGER PK | |
+| `attempted_at` | DATETIME | |
+| `page` | TEXT | Page whose link was used |
+| `correct` | INTEGER | 1 when the word matched a configured hash |
+| `word` | TEXT NULL | Wrong words as typed (trimmed, at most 200 characters); always NULL when correct |
+| `city`, `region`, `country` | TEXT NULL | Approximate location from Cloudflare headers |
+| `tz` | TEXT NULL | Visitor's IANA timezone from the gate's script |
+
 ## Public app
 
 JSON API under `/api/v1`, `Cache-Control: no-store`.
@@ -149,7 +164,7 @@ JSON API under `/api/v1`, `Cache-Control: no-store`.
 | PATCH | `/api/v1/pages/{slug}/state?tz=` | Validate and merge submitted fields; optional visitor timezone |
 | POST | `/api/v1/pages/{slug}/open?kind=&tz=` | Record one open with its optional navigation type and visitor timezone |
 | GET | `/assets/*` | Build files named by content hash only; no listing; need an unlock while the gate is on |
-| GET | `/gate/*` | The gate's own fonts; always public |
+| GET | `/gate/*` | The gate's own fonts and script; always public |
 | GET | `/health`, `/health/ready` | Liveness; database readiness |
 
 Response of `GET /api/v1/pages/{slug}`; it never contains the slug or the
@@ -205,7 +220,7 @@ content security policy and framing/permissions restrictions. Production also
 sends HSTS. HTML, API, health, redirects and errors use `Cache-Control:
 no-store`; only content-hashed files below `/assets/` are cached, privately,
 for one year as immutable (never by Cloudflare, since they need an unlock),
-and the gate's fonts publicly for a day. Mutation requests with a declared body over 64 KiB are rejected
+and the gate's files publicly with revalidation (`no-cache`). Mutation requests with a declared body over 64 KiB are rejected
 before routing.
 
 ### Password gate
@@ -213,9 +228,11 @@ before routing.
 On when `PAGE_PASSWORD_HASHES` lists at least one scrypt hash; empty turns it
 off and every link opens directly. An invalid hash aborts the start.
 
-- A locked `/{slug}` returns the gate: a server-rendered, script-free page
-  greeting the recipient named in `frontend/shared/recipient.json` (empty
-  name: "you"), with one password field. It sends `Referrer-Policy:
+- A locked `/{slug}` returns the gate: a server-rendered page greeting the
+  recipient named in `frontend/shared/recipient.json` (empty name: "you"),
+  with one "secret word" field. Its only script, `/gate/gate.js`, is
+  optional: it adds the visitor's timezone to the form and runs the pause
+  countdown. It sends `Referrer-Policy:
   same-origin` so its form post keeps `Origin`, and `X-Page-Gate: locked`.
 - The submitted password is normalised (Unicode NFKC, case-folded, spaces
   trimmed and collapsed) and checked against every configured hash; any match
@@ -227,8 +244,13 @@ off and every link opens directly. An invalid hash aborts the start.
   `/assets/` accept the cookie for six hours, so an open page keeps working.
 - Wrong guesses are counted per visitor (`CF-Connecting-IP`), in memory: up
   to 20 an hour while the page has never been opened, then 5 per 15 minutes.
-  Over the limit the gate answers `429` and checks nothing. After three
-  misses the gate shows the recipient file's hint. Success clears the count.
+  The guess that reaches the limit pauses the visitor at once. While paused,
+  the gate (on any request) answers `429` with the field and button disabled
+  and "You can try again in m:ss"; the script counts down and reloads the
+  gate at zero. Guesses sent while paused are not checked or logged. After
+  three misses the gate shows the recipient file's hint. Success clears the
+  count.
+- Every non-blank guess that is checked is logged in `gate_attempts`.
 - Gate views record nothing; opens are recorded only by the page itself,
   after unlocking.
 
@@ -269,7 +291,8 @@ failed attempts within five minutes temporarily throttle all logins.
 | --- | --- | --- |
 | GET, POST | `/login` | Password login; sets session cookie |
 | POST | `/logout` | End session |
-| GET | `/` | Dashboard: list of pages with status, last opened and open count; each links to its page view |
+| GET | `/` | Dashboard: list of pages with status, last opened and open count, each linking to its page view; then the latest 200 secret word attempts grouped by the visitor's date (time, Correct ✓ or Wrong with the word as text, location) |
+| POST | `/attempts/clear` | Delete every secret word attempt (after confirmation), then return to the dashboard |
 | GET | `/pages/{page}` | Page view: copy-only public link, preview and QR buttons, Received / Opens / New opens / Last opened, saved responses, opens grouped by the visitor's date with time, kind and location, and a reset confirmation |
 | GET | `/view/{page}` | The page in admin mode |
 | GET | `/api/v1/pages/{page}` | Same payload as the public API plus `"admin": true` |

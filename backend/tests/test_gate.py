@@ -72,7 +72,8 @@ def test_unknown_link_still_redirects_without_a_gate(client: TestClient) -> None
 def test_gate_fonts_are_public(client: TestClient) -> None:
     font = client.get("/gate/cormorant.woff2")
     assert font.status_code == 200
-    assert font.headers["cache-control"] == "public, max-age=86400"
+    assert font.headers["cache-control"] == "public, no-cache"
+    assert client.get("/gate/gate.js").status_code == 200
 
 
 @pytest.mark.parametrize("password", ["marigold", "  MARIGOLD ", "Marigold", "SECOND   Word"])
@@ -143,8 +144,12 @@ def test_forged_or_foreign_cookies_do_not_unlock(client: TestClient, value: str)
 
 
 def test_limits_are_generous_until_the_page_is_first_opened(client: TestClient, gated: Settings) -> None:
-    for _ in range(20):
+    for _ in range(19):
         assert guess(client, "wrong").status_code == 401
+    # The 20th miss pauses at once, with a countdown of up to an hour.
+    last = guess(client, "wrong")
+    assert last.status_code == 429
+    assert 'data-countdown="3600"' in last.text or 'data-countdown="3599"' in last.text
     paused = guess(client, "marigold")
     assert paused.status_code == 429
     assert "set-cookie" not in paused.headers
@@ -157,8 +162,9 @@ def test_limits_tighten_once_the_page_has_been_opened(client: TestClient, gated:
         conn.execute(
             "INSERT INTO page_opens (page, opened_at, kind) VALUES ('alpha', '2026-11-19T00:00:00+00:00', 'navigate')"
         )
-    for _ in range(5):
+    for _ in range(4):
         assert guess(client, "wrong").status_code == 401
+    assert guess(client, "wrong").status_code == 429
     assert guess(client, "marigold").status_code == 429
     # Another page that has never been opened keeps the generous limit.
     assert guess(client, "marigold", SLUG_B).status_code == 303
@@ -202,3 +208,60 @@ def test_normalize_password() -> None:
     assert normalize_password("  MáRIGOLD\t ") == normalize_password("márigold")
     assert normalize_password("Straße") == "strasse"
     assert normalize_password("two   words") == "two words"
+
+
+def attempts(settings: Settings) -> list[tuple]:
+    with connect(settings.database_path, read_only=True) as conn:
+        return [
+            tuple(row)
+            for row in conn.execute(
+                "SELECT page, correct, word, city, country, tz FROM gate_attempts ORDER BY id"
+            )
+        ]
+
+
+def test_every_entered_word_is_logged_but_correct_ones_never_as_text(
+    client: TestClient, gated: Settings
+) -> None:
+    where = {"cf-ipcity": "Wellington", "cf-ipcountry": "NZ"}
+    client.post(f"/{SLUG_A}", data={"password": "  Rose ", "tz": "Pacific/Auckland"}, headers={**ORIGIN, **where})
+    client.post(f"/{SLUG_A}", data={"password": "   "}, headers=ORIGIN)  # blank: not a guess
+    client.post(f"/{SLUG_A}", data={"password": "MARIGOLD", "tz": "Not/AZone"}, headers=ORIGIN)
+    assert attempts(gated) == [
+        ("alpha", 0, "Rose", "Wellington", "NZ", "Pacific/Auckland"),
+        ("alpha", 1, None, None, None, None),
+    ]
+
+
+def test_paused_gate_disables_entry_and_logs_nothing(client: TestClient, gated: Settings) -> None:
+    with connect(gated.database_path) as conn:
+        conn.execute(
+            "INSERT INTO page_opens (page, opened_at) VALUES ('alpha', '2026-11-19T00:00:00+00:00')"
+        )
+    for n in range(5):
+        guess(client, f"wrong {n}")
+    page = client.get(f"/{SLUG_A}")
+    assert page.status_code == 429
+    assert "a few too many tries" in page.text
+    assert 'name="password"' in page.text and "disabled" in page.text
+    assert "data-countdown=" in page.text
+    assert "it grows in spring" in page.text  # the hint stays visible
+    guess(client, "while paused")
+    assert len(attempts(gated)) == 5
+    # Not paused: the gate has no countdown and loads its script.
+    fresh = client.get(f"/{SLUG_A}", headers={"cf-connecting-ip": "203.0.113.9"})
+    assert fresh.status_code == 200 and "data-countdown" not in fresh.text
+    assert 'src="/gate/gate.js"' in fresh.text
+
+
+def test_retry_after_counts_down_to_the_oldest_counted_miss() -> None:
+    from app.gate import GateThrottle
+
+    throttle = GateThrottle()
+    assert throttle.retry_after("v", tight=True) == 0
+    for _ in range(5):
+        throttle.failed("v")
+    assert 899 <= throttle.retry_after("v", tight=True) <= 900
+    assert throttle.retry_after("v", tight=False) == 0
+    throttle.succeeded("v")
+    assert throttle.retry_after("v", tight=True) == 0

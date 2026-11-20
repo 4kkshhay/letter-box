@@ -39,11 +39,31 @@ class Open:
 
     @property
     def location(self) -> str | None:
-        parts: list[str] = []
-        for part in (self.city, self.region, self.country):
-            if part and part not in parts:
-                parts.append(part)
-        return ", ".join(parts) or None
+        return _place(self.city, self.region, self.country)
+
+
+@dataclass(frozen=True)
+class GateAttempt:
+    """A secret word entered on the page gate; `word` is None when correct."""
+
+    attempted_at: datetime
+    correct: bool
+    word: str | None
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+
+    @property
+    def location(self) -> str | None:
+        return _place(self.city, self.region, self.country)
+
+
+def _place(*parts: str | None) -> str | None:
+    kept: list[str] = []
+    for part in parts:
+        if part and part not in kept:
+            kept.append(part)
+    return ", ".join(kept) or None
 
 
 @dataclass(frozen=True)
@@ -196,3 +216,41 @@ def reset_page(database_path: Path, page: Page) -> None:
     with connect(database_path) as conn:
         conn.execute("DELETE FROM page_state WHERE page = ?", (page.name,))
         conn.execute("DELETE FROM page_opens WHERE page = ?", (page.name,))
+
+
+GATE_ATTEMPTS_SHOWN = 200
+
+
+def gate_attempts(database_path: Path) -> tuple[list[GateAttempt], int]:
+    """The newest attempts, each in the visitor's own timezone, and the total count."""
+    with connect(database_path, read_only=True) as conn:
+        total = conn.execute("SELECT COUNT(*) FROM gate_attempts").fetchone()[0]
+        attempts = [
+            GateAttempt(
+                attempted_at=_local(row["attempted_at"], row["tz"]),
+                correct=bool(row["correct"]),
+                word=row["word"],
+                city=row["city"],
+                region=row["region"],
+                country=row["country"],
+            )
+            for row in conn.execute(
+                "SELECT attempted_at, correct, word, city, region, country, tz FROM gate_attempts"
+                " ORDER BY attempted_at DESC, id DESC LIMIT ?",
+                (GATE_ATTEMPTS_SHOWN,),
+            )
+        ]
+    return attempts, total
+
+
+def attempts_by_day(attempts: list[GateAttempt]) -> list[tuple[date, list[GateAttempt]]]:
+    """Attempts grouped by the visitor's local date, keeping newest first."""
+    days: dict[date, list[GateAttempt]] = {}
+    for item in attempts:
+        days.setdefault(item.attempted_at.date(), []).append(item)
+    return list(days.items())
+
+
+def clear_gate_attempts(database_path: Path) -> None:
+    with connect(database_path) as conn:
+        conn.execute("DELETE FROM gate_attempts")
