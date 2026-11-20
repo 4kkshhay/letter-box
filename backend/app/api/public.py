@@ -27,6 +27,7 @@ from app.services.state import (
     InvalidFields,
     OpenLocation,
     page_was_opened,
+    record_gate_attempt,
     visitor_timezone,
     read_state,
     record_open,
@@ -135,7 +136,15 @@ def _visitor(request: Request) -> str:
     return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "")
 
 
-def _gate(request: Request, *, status_code: int = 200, message: str = "", hint: bool = False) -> Response:
+def _gate(
+    request: Request,
+    *,
+    status_code: int = 200,
+    message: str = "",
+    hint: bool = False,
+    retry_after: int = 0,
+) -> Response:
+    """The gate page; while `retry_after` is set, paused with a countdown."""
     recipient = request.app.state.recipient
     return gate_templates.TemplateResponse(
         request,
@@ -145,12 +154,39 @@ def _gate(request: Request, *, status_code: int = 200, message: str = "", hint: 
             "message": message,
             "hint": recipient.hint if hint else "",
             "attempted": request.method == "POST",
+            "retry_after": retry_after,
+            "countdown": f"{retry_after // 60}:{retry_after % 60:02d}",
         },
         status_code=status_code,
         # Form posts from a `no-referrer` page carry `Origin: null`, which the
         # same-origin check rejects; this page's own address is never sent off-site.
         headers={**NO_STORE, "Referrer-Policy": "same-origin", "X-Page-Gate": "locked"},
     )
+
+
+async def _locked_gate(request: Request, page: Page, visitor: str) -> Response:
+    """The gate as this visitor should see it now: open for a guess, or paused."""
+    # Generous until the page is first opened, so working out the password
+    # never locks its first visitor out.
+    tight = await run_in_threadpool(
+        page_was_opened, request.app.state.settings.database_path, page
+    )
+    retry_after = gate_throttle.retry_after(visitor, tight=tight)
+    if retry_after:
+        return _gate(
+            request,
+            status_code=429,
+            hint=gate_throttle.failures(visitor) >= HINT_AFTER_FAILURES,
+            retry_after=retry_after,
+        )
+    if request.method == "POST":
+        return _gate(
+            request,
+            status_code=401,
+            message="Not quite. Try once more.",
+            hint=gate_throttle.failures(visitor) >= HINT_AFTER_FAILURES,
+        )
+    return _gate(request)
 
 
 @router.api_route("/l/{slug}", methods=["GET", "HEAD"])
@@ -164,12 +200,12 @@ def legacy_page_link(slug: str, request: Request) -> Response:
 # Single path segments only. Slugs are at least 10 characters, so they can
 # never equal a fixed route such as /health, /api, /assets or /gate.
 @router.api_route("/{slug}", methods=["GET", "HEAD"])
-def page_html(slug: str, request: Request) -> Response:
+async def page_html(slug: str, request: Request) -> Response:
     page = _page_for(request, slug)
     if page is None:
         return redirect_to_root()
     if not has_unlock(request, page, PAGE_UNLOCK_SECONDS):
-        return _gate(request)
+        return await _locked_gate(request, page, _visitor(request))
     return FileResponse(page.html_path, headers=NO_STORE)
 
 
@@ -184,16 +220,10 @@ async def unlock_page(slug: str, request: Request) -> Response:
     require_same_origin(request)
     settings = request.app.state.settings
     visitor = _visitor(request)
-    # Generous until the page is first opened, so working out the password
-    # never locks its first visitor out.
     tight = await run_in_threadpool(page_was_opened, settings.database_path, page)
-    if not gate_throttle.allowed(visitor, tight=tight):
-        return _gate(
-            request,
-            status_code=429,
-            message="Let's pause for a moment. Try again in a little while.",
-            hint=True,
-        )
+    if gate_throttle.retry_after(visitor, tight=tight):
+        # Paused: nothing is checked or logged.
+        return await _locked_gate(request, page, visitor)
 
     body = bytearray()
     async for chunk in request.stream():
@@ -201,21 +231,26 @@ async def unlock_page(slug: str, request: Request) -> Response:
         if len(body) > 4096:
             raise HTTPException(status_code=413, detail="Request body too large")
     content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-    password = ""
+    form: dict[str, list[str]] = {}
     if content_type == "application/x-www-form-urlencoded":
-        password = parse_qs(body.decode("utf-8", errors="replace")).get("password", [""])[0]
-    password = password[:MAX_PASSWORD_CHARS]
+        form = parse_qs(body.decode("utf-8", errors="replace"))
+    password = form.get("password", [""])[0][:MAX_PASSWORD_CHARS]
+    correct = await run_in_threadpool(password_matches, password, settings.page_password_hashes)
+    if password.strip():
+        await run_in_threadpool(
+            record_gate_attempt,
+            settings.database_path,
+            page,
+            password.strip(),
+            correct,
+            _open_location(request),
+            visitor_timezone(form.get("tz", [""])[0]),
+        )
 
-    if not await run_in_threadpool(password_matches, password, settings.page_password_hashes):
+    if not correct:
         if password.strip():
             gate_throttle.failed(visitor)
-        failures = gate_throttle.failures(visitor)
-        return _gate(
-            request,
-            status_code=401,
-            message="Not quite. Try once more.",
-            hint=failures >= HINT_AFTER_FAILURES,
-        )
+        return await _locked_gate(request, page, visitor)
 
     gate_throttle.succeeded(visitor)
     response = RedirectResponse(request.url.path, status_code=303, headers=NO_STORE)

@@ -81,6 +81,16 @@ server deploy (deferred item F-006).
   locally (D-081, resolves F-007).
 - Verified: 206 backend and 39 frontend tests.
 
+### Secret word attempts and pause countdown (2026-11-20)
+
+- Every checked gate guess is logged (migration 0005) and listed on the
+  admin dashboard by the visitor's date, with Clear attempts; correct words
+  show only as "Correct ✓". Paused visitors see a disabled field and a live
+  countdown (D-082–D-084).
+- Verified: 210 backend tests. Rendered the paused gate on a phone and the
+  dashboard section on desktop and phone; the visitor timezone (NZDT) was
+  recorded through the gate script.
+
 ### Not yet verified
 
 - Image build on arm64 (F-006).

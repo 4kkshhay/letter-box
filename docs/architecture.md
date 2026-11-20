@@ -74,7 +74,7 @@ flowchart TD
   message. The page then calls the public API to load saved state and report
   that it was opened.
 - While the password gate is on (`PAGE_PASSWORD_HASHES` set), a link first
-  shows a server-rendered password screen; the page HTML, its API and
+  shows a server-rendered secret word screen; the page HTML, its API and
   `/assets/` need the signed unlock cookie a correct password sets.
 - Pages marked `demo` are left out entirely where demo pages are off (the
   production default).
@@ -142,6 +142,9 @@ data/                 # SQLite file (gitignored)
   from Cloudflare; the
   first open doubles as "received". No IP addresses, coordinates or user
   agents.
+- Stored for the gate: each checked secret word attempt with time, visitor
+  timezone and approximate location. Wrong words are kept as typed (the
+  owner sees them in admin); a correct word is recorded only as correct.
 - Mutations require a matching `Origin` and a JSON body; no permissive CORS.
 - Validate field names, types, options, lengths and body size server-side.
   Render submitted text as text only.

@@ -20,6 +20,9 @@ from app.admin.auth import (
 )
 from app.admin.services import (
     admin_page_payload,
+    attempts_by_day,
+    clear_gate_attempts,
+    gate_attempts,
     page_detail,
     page_summaries,
     public_page_url,
@@ -139,9 +142,25 @@ def logout(request: Request) -> RedirectResponse:
 def dashboard(request: Request) -> Response:
     settings = request.app.state.settings
     pages = page_summaries(settings.database_path, request.app.state.pages)
+    attempts, total_attempts = gate_attempts(settings.database_path)
     return templates.TemplateResponse(
-        request, "dashboard.html", {"pages": pages}, headers=NO_STORE
+        request,
+        "dashboard.html",
+        {
+            "pages": pages,
+            "attempt_days": attempts_by_day(attempts),
+            "shown_attempts": len(attempts),
+            "total_attempts": total_attempts,
+        },
+        headers=NO_STORE,
     )
+
+
+@router.post("/attempts/clear")
+def clear_attempts(request: Request) -> RedirectResponse:
+    require_same_origin(request)
+    clear_gate_attempts(request.app.state.settings.database_path)
+    return RedirectResponse("/", status_code=303, headers=NO_STORE)
 
 
 @router.get("/pages/{name}", response_class=HTMLResponse)

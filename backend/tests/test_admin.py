@@ -217,3 +217,32 @@ def test_time_format_uses_visitor_zone_abbreviation() -> None:
         assert _time(instant.astimezone(ZoneInfo(zone))) == expected
     assert _time(instant) == "1:23am UTC"
 
+
+
+def test_dashboard_lists_gate_attempts_and_can_clear_them(
+    admin_client: TestClient, with_pages: Settings
+) -> None:
+    with connect(with_pages.database_path) as conn:
+        conn.execute(
+            "INSERT INTO gate_attempts (attempted_at, page, correct, word, city, country, tz)"
+            " VALUES ('2026-11-19T08:00:00+00:00', 'alpha', 0, '<b>tulip</b>', 'Auckland', 'NZ', 'Pacific/Auckland')"
+        )
+        conn.execute(
+            "INSERT INTO gate_attempts (attempted_at, page, correct, word)"
+            " VALUES ('2026-11-19T08:01:00+00:00', 'alpha', 1, NULL)"
+        )
+    login(admin_client)
+    text = admin_client.get("/").text
+    assert "Secret word attempts" in text
+    assert "<code>&lt;b&gt;tulip&lt;/b&gt;</code>" in text  # shown as text, never HTML
+    assert "Thu 19 Nov 2026</h3>" in text and "9:00pm NZDT" in text
+    assert "Auckland, NZ" in text
+    assert 'class="tag good">Correct ✓<' in text and 'class="tag wrong">Wrong<' in text
+    assert text.index("Correct ✓") < text.index("tulip")  # newest first
+
+    assert admin_client.post("/attempts/clear").status_code == 403
+    response = admin_client.post("/attempts/clear", headers=ORIGIN)
+    assert response.status_code == 303 and response.headers["location"] == "/"
+    assert "No attempts yet." in admin_client.get("/").text
+    with connect(with_pages.database_path, read_only=True) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM gate_attempts").fetchone()[0] == 0

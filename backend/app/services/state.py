@@ -150,3 +150,29 @@ def page_was_opened(database_path: Path, page: Page) -> bool:
     with connect(database_path, read_only=True) as conn:
         row = conn.execute("SELECT 1 FROM page_opens WHERE page = ? LIMIT 1", (page.name,)).fetchone()
     return row is not None
+
+
+def record_gate_attempt(
+    database_path: Path,
+    page: Page,
+    word: str,
+    correct: bool,
+    location: OpenLocation = OpenLocation(),
+    tz: str | None = None,
+) -> None:
+    """Log a secret word entered on the gate; a correct one is never stored as text."""
+    with connect(database_path) as conn:
+        conn.execute(
+            "INSERT INTO gate_attempts (attempted_at, page, correct, word, city, region, country, tz)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                utc_now(),
+                page.name,
+                int(correct),
+                None if correct else word,
+                location.city,
+                location.region,
+                location.country,
+                tz,
+            ),
+        )

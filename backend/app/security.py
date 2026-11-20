@@ -85,7 +85,8 @@ def install_security_middleware(
             # to someone who has not unlocked a page.
             response.headers["Cache-Control"] = "private, max-age=31536000, immutable"
         elif request.url.path.startswith("/gate/") and response.status_code == 200:
-            response.headers["Cache-Control"] = "public, max-age=86400"
+            # Unhashed names: revalidate (cheap 304s) so changes show at once.
+            response.headers["Cache-Control"] = "public, no-cache"
         else:
             response.headers["Cache-Control"] = "no-store"
         return response

@@ -12,6 +12,27 @@
       .meta { grid-column: 1; color: var(--muted); font-size: .9rem; }
       .tags { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: .35rem; }
       .chevron { color: var(--muted); font-size: 1.25rem; }
+      .attempts-card { margin-top: 2rem; }
+      .attempts-card h2 { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+      .attempts-card h2 small { color: var(--muted); font-size: .85rem; font-weight: 500; }
+      .day + .day { margin-top: 1.25rem; }
+      .day h3 { margin: 0 0 .4rem; color: var(--muted); font-size: .85rem; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+      .attempts { margin: 0; padding: 0; list-style: none; }
+      .attempts li { display: grid; grid-template-columns: 7rem auto 1fr auto; align-items: center; gap: .75rem;
+        padding: .55rem 0; border-top: 1px solid var(--line); }
+      .attempts li:first-child { border-top: 0; }
+      .attempts time { font-variant-numeric: tabular-nums; font-weight: 600; }
+      .attempts .word { overflow-wrap: anywhere; white-space: pre-wrap; }
+      .attempts .place { color: var(--muted); text-align: right; font-size: .9rem; overflow-wrap: anywhere; }
+      .tag.wrong { background: var(--danger-bg); color: var(--danger); }
+      details.clear { margin-top: 1rem; }
+      details.clear summary { cursor: pointer; color: var(--danger); font-weight: 600; }
+      details.clear[open] { padding: 1rem; border-radius: var(--radius); background: var(--danger-bg); }
+      details.clear p { margin: .75rem 0; }
+      @media (max-width: 40rem) {
+        .attempts li { grid-template-columns: auto auto 1fr; gap: .25rem .6rem; }
+        .attempts .place { grid-column: 1 / -1; text-align: left; }
+      }
     </style>
 {% endblock %}
 {% block main %}
@@ -38,4 +59,36 @@
           {% endfor %}
         </ul>
       {% endif %}
+
+      <section class="card attempts-card">
+        <h2>Secret word attempts
+          {% if total_attempts > shown_attempts %}<small>Latest {{ shown_attempts }} of {{ total_attempts }}</small>{% endif %}
+        </h2>
+        {% if not attempt_days %}
+          <p class="empty">No attempts yet.</p>
+        {% else %}
+          {% for day, attempts in attempt_days %}
+          <div class="day">
+          <h3>{{ day|day }}</h3>
+          <ul class="attempts">
+            {% for item in attempts %}
+              <li>
+                <time datetime="{{ item.attempted_at.isoformat() }}">{{ item.attempted_at|time }}</time>
+                {% if item.correct %}<span class="tag good">Correct ✓</span>{% else %}<span class="tag wrong">Wrong</span>{% endif %}
+                <span class="word">{% if not item.correct %}<code>{{ item.word }}</code>{% endif %}</span>
+                <span class="place">{{ item.location or "Location unknown" }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+          </div>
+          {% endfor %}
+          <details class="clear">
+            <summary>Clear attempts…</summary>
+            <p>Deletes every recorded secret word attempt. Pages and their opens are not affected. This cannot be undone.</p>
+            <form method="post" action="/attempts/clear">
+              <button class="danger" type="submit">Clear attempts</button>
+            </form>
+          </details>
+        {% endif %}
+      </section>
 {% endblock %}
